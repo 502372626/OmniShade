@@ -1,0 +1,322 @@
+/* ============================================================================
+ * omni-craft-settings.css — 设置页（模型配置 / API Key / 参数）工艺覆盖增强
+ * ----------------------------------------------------------------------------
+ * 作用域（仅覆盖，不碰 React 源码）：
+ *   1) 设置页主体：竖向 Radix Tabs 根节点
+ *        div[class*="flex-1"][class*="flex-col"][class*="gap-4"]
+ *           [class*="overflow-hidden"][class*="p-5"]
+ *           [class*="md:flex-row"][class*="md:gap-6"]
+ *   2) API Key 弹窗：SetKeyDialog 面板
+ *        div[class*="bg-surface-dialog"][class*="shadow-2xl"]
+ *
+ * 工艺体系（G31 收口，真源 omni-craft-system.css）：
+ *   字号阶梯 6 级 11/12/13/14/16/20 —— 设置页指派：
+ *     20 → 页面标题（text-2xl 落点，原 24px 归并到最高级）
+ *     16 → 分区/卡片标题（text-lg 落点）
+ *     14 → 输入框正文（input/textarea 值）
+ *     13 → 字段名 label（semibold）
+ *     12 → 帮助文本 / 说明（text-xs text-text-tertiary 落点）
+ *     11 → 单位 / 参数角标（大写微标签）
+ *   间距标尺 4/8/12/16/24/32 —— 字段列 gap 12、组间 16/24、输入内距 8×12
+ *   时长阶 150/250/400 —— 输入/卡片 250、开关滑块 250、按下 150（[AUDIT-FIX] 三档口径）
+ *   主曲线 cubic-bezier(0.22, 1, 0.36, 1)
+ *
+ * ⚠ 令牌消费铁律：--surface-* / --text-* / --accent-* 是 RGB 三元组，必须 rgb(var(--x))；
+ *    --border-* 是完整 rgba()，直接 var()；混用会导致整条声明被浏览器丢弃。
+ *
+ * ⚠ 生效必须：在 desktop/ui/index.html 的 <head> 末尾（omni-craft <style> 之后）
+ *    追加一行 <link rel="stylesheet" href="./omni-craft-settings.css" />。
+ *    这是 HTML 装配，不是 React 源码改动。
+ * ========================================================================== */
+
+/* 复用 omni-craft 注入的 CSS 变量（--accent-primary / --surface-* / --border-* 等）。 */
+:root {
+  --omni-ease: cubic-bezier(0.22, 1, 0.36, 1);   /* 全局唯一主曲线（与 system.css --ease-out 同值） */
+  /* 设置页字号指派（G31），全部落全局 6 级 */
+  --set-fs-page: var(--fs-6, 20px);     /* 页面标题 */
+  --set-fs-section: var(--fs-5, 16px);  /* 分区/卡片标题 */
+  --set-fs-value: var(--fs-4, 14px);    /* 输入值 / 正文 */
+  --set-fs-label: var(--fs-4, 14px);    /* 字段名（14，靠字重与输入值区分） */
+  --set-fs-help: var(--fs-2, 12px);     /* 帮助文本 */
+  --set-fs-micro: var(--fs-1, 11px);    /* 单位 / 角标 */
+  /* 间距步进（8pt） */
+  --set-gap-field: var(--space-3, 12px);
+  --set-gap-group: var(--space-4, 16px);
+  --set-gap-section: var(--space-5, 24px);
+  --set-pad-input-y: var(--space-2, 8px);
+  --set-pad-input-x: var(--space-3, 12px);
+  /* 时长阶 */
+  --set-dur-press: var(--dur-1, 150ms);
+  --set-dur-surface: var(--dur-3, 250ms);
+  --set-dur-enter: var(--dur-4, 250ms);
+}
+
+/* API Key / SetKeyDialog：弹窗统一 16px。 */
+div[class*="bg-surface-dialog"][class*="shadow-2xl"] {
+  border-radius: var(--omni-radius-dialog, 16px) !important;
+}
+
+:is(
+  div[class*="flex-1"][class*="flex-col"][class*="gap-4"][class*="overflow-hidden"][class*="p-5"][class*="md:flex-row"][class*="md:gap-6"],
+  div[class*="bg-surface-dialog"][class*="shadow-2xl"]
+) {
+  /* ===================== 页面外框间距（8pt）=====================
+   * 根节点 Tailwind p-5 = 20px（2px 步进），统一抬到 24（--space-5，主节奏 8 的第三档）。 */
+  padding: var(--space-5, 24px) !important;
+
+  /* ===================== 表单控件间距（8pt）===================== */
+  /* 字段列容器：gap-1.5(6) / gap-2(8) / gap-3(12) 三档全部归到 12 / 16 / 24 */
+  [class*="flex-col"][class*="gap-1.5"] {
+    gap: var(--set-gap-field) !important;      /* 12 */
+  }
+  [class*="flex-col"][class*="gap-2"] {
+    gap: var(--set-gap-group) !important;      /* 16 */
+  }
+  [class*="flex-col"][class*="gap-3"] {
+    gap: var(--set-gap-section) !important;    /* 24 */
+  }
+  /* 单行字段组（label + 控件）下方补一点间距：8 / 4 */
+  [class*="mb-1.5"] {
+    margin-bottom: var(--space-2, 8px) !important;
+  }
+  [class*="mb-1"] {
+    margin-bottom: var(--space-1, 4px) !important;
+  }
+
+  /* ===================== 输入框圆角 + 聚焦辉光 ===================== */
+  /* 文本 / 密码 / 数字 / 文本域 / 下拉触发器：统一圆角、填充、字号、过渡 */
+  input:not([type="checkbox"]):not([type="radio"]),
+  textarea,
+  [role="combobox"],
+  select {
+    border-radius: var(--omni-radius-input, 10px) !important;
+    border: 1px solid var(--border-medium) !important;
+    background-color: rgb(var(--surface-tertiary)) !important;
+    color: rgb(var(--text-primary)) !important;
+    font-size: var(--set-fs-value) !important;              /* 14 · 正文级 */
+    line-height: var(--lh-4, 22px) !important;
+    padding: var(--set-pad-input-y) var(--set-pad-input-x) !important;  /* 8×12 */
+    transition: border-color var(--set-dur-surface) var(--omni-ease),
+      box-shadow var(--set-dur-surface) var(--omni-ease),
+      background-color var(--set-dur-surface) var(--omni-ease) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03) !important;
+  }
+  input::placeholder,
+  textarea::placeholder {
+    color: rgb(var(--text-tertiary)) !important;
+    opacity: 1 !important;
+  }
+  /* 聚焦：accent 描边 + 外发光（压过 omni-craft 的全局 focus 辉光，因特异性更高） */
+  input:not([type="checkbox"]):not([type="radio"]):focus-visible,
+  input:not([type="checkbox"]):not([type="radio"]):focus,
+  textarea:focus-visible,
+  textarea:focus,
+  [role="combobox"]:focus-visible,
+  select:focus-visible {
+    outline: none !important;
+    border-color: rgb(var(--accent-primary)) !important;
+    background-color: rgb(var(--surface-secondary)) !important;
+    box-shadow: 0 0 0 1px rgb(var(--accent-primary)),
+      0 0 16px -3px rgba(91, 140, 255, 0.55) !important;
+  }
+
+  /* ===================== 开关动效 ===================== */
+  /* 开关底盘：开启态 accent 辉光 + 过渡 */
+  button[role="switch"] {
+    transition: background-color var(--set-dur-surface) var(--omni-ease),
+      box-shadow var(--set-dur-surface) var(--omni-ease) !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06) !important;
+  }
+  button[role="switch"][data-state="checked"] {
+    box-shadow: 0 0 0 2px rgb(var(--accent-primary)),
+      0 0 12px -2px rgba(91, 140, 255, 0.7) !important;
+  }
+  /* 开关滑块（Radix Thumb，data-state 挂在 span 上）：位移 320ms + 投影 */
+  button[role="switch"] span[data-state],
+  button[role="switch"] > span {
+    height: 20px !important;                       /* 1.15rem -> 20，4 的倍数 */
+    width: 20px !important;
+    background-color: #ffffff !important;
+    border-radius: var(--omni-radius-pill, 9999px) !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45) !important;
+    transition: transform var(--set-dur-enter) var(--omni-ease),
+      background-color var(--set-dur-surface) var(--omni-ease),
+      box-shadow var(--set-dur-surface) var(--omni-ease) !important;
+  }
+  button[role="switch"][data-state="checked"] > span {
+    background-color: #ffffff !important;
+  }
+
+  /* ===================== 分区卡片：轻阴影 + 细边框 ===================== */
+  [class*="rounded-xl"][class*="bg-surface-secondary"],
+  [class*="rounded-lg"][class*="bg-surface-secondary"],
+  [class*="rounded-xl"][class*="border"][class*="bg-surface"] {
+    border-radius: var(--omni-radius-card, 14px) !important;
+    border: 1px solid var(--border-medium) !important;
+    background-color: rgb(var(--surface-secondary)) !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25),
+      0 6px 18px -10px rgba(0, 0, 0, 0.55) !important;
+    transition: box-shadow var(--set-dur-surface) var(--omni-ease),
+      border-color var(--set-dur-surface) var(--omni-ease),
+      transform var(--set-dur-surface) var(--omni-ease) !important;
+  }
+  [class*="rounded-xl"][class*="bg-surface-secondary"]:hover,
+  [class*="rounded-lg"][class*="bg-surface-secondary"]:hover {
+    border-color: rgb(var(--accent-primary)) !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3),
+      0 10px 28px -12px rgba(91, 140, 255, 0.4) !important;
+  }
+
+  /* ===================== 标签字号层级（G31 五级落位）===================== */
+  /* 字段标题（14 · 阶梯第 4 级）：与输入正文同号，靠 600 字重 + 主文字色分层 */
+  label,
+  [class*="mb-1"][class*="text-sm"][class*="font-medium"],
+  [class*="text-left"][class*="text-sm"][class*="font-medium"],
+  [class*="text-sm"][class*="font-medium"][class*="text-text-secondary"] {
+    font-size: var(--set-fs-label) !important;   /* 14 */
+    line-height: var(--lh-4, 22px) !important;
+    font-weight: 600 !important;
+    color: rgb(var(--text-primary)) !important;
+    letter-spacing: 0.01em !important;
+  }
+  /* 帮助文本 / 微提示（12 · 阶梯第 2 级）：保持句子大小写，仅给字距 */
+  [class*="text-xs"][class*="text-text-tertiary"],
+  [class*="text-xs"][class*="font-normal"],
+  [class*="text-text-tertiary"][class*="mt-1"],
+  [class*="text-text-secondary"][class*="text-xs"] {
+    font-size: var(--set-fs-help) !important;    /* 12 */
+    line-height: var(--lh-2, 16px) !important;
+    letter-spacing: 0.01em !important;
+    color: rgb(var(--text-tertiary)) !important;
+  }
+  /* 参数角标 / 单位（11 · 阶梯最低级）：大写 + 字距，建立最底层级 */
+  [class*="text-xs"][class*="uppercase"],
+  [class*="text-2xs"],
+  [class*="font-mono"][class*="text-xs"] {
+    font-size: var(--set-fs-micro) !important;   /* 11 */
+    line-height: var(--lh-1, 16px) !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.08em !important;
+    color: rgb(var(--text-tertiary)) !important;
+  }
+  /* 分区大标题（16 · 阶梯第 5 级）：text-lg 落点；页面标题（20 · 最高级）：text-2xl 落点 */
+  [class*="text-lg"][class*="font-medium"],
+  [class*="text-lg"][class*="font-semibold"] {
+    font-size: var(--set-fs-section) !important; /* 16 */
+    line-height: var(--lh-5, 24px) !important;
+    color: rgb(var(--text-primary)) !important;
+    letter-spacing: -0.01em !important;
+  }
+  [class*="text-2xl"][class*="font-semibold"],
+  [class*="text-2xl"][class*="font-bold"] {
+    font-size: var(--set-fs-page) !important;    /* 20（原 24 归并） */
+    line-height: var(--lh-6, 28px) !important;
+    color: rgb(var(--text-primary)) !important;
+    letter-spacing: -0.01em !important;
+  }
+
+  /* ===================== 保存 / 主按钮强调 ===================== */
+  [class*="bg-surface-submit"],
+  .btn[class*="bg-surface-submit"] {
+    border-radius: var(--omni-radius-button, 10px) !important;
+    font-size: var(--set-fs-value) !important;   /* 14 */
+    line-height: var(--lh-4, 22px) !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.02em !important;
+    background: linear-gradient(
+      180deg,
+      rgb(var(--surface-submit-hover)),
+      rgb(var(--surface-submit))
+    ) !important;
+    box-shadow: 0 2px 6px -1px rgba(91, 140, 255, 0.5),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.08) !important;
+    transition: transform var(--set-dur-press) var(--omni-ease),
+      box-shadow var(--set-dur-surface) var(--omni-ease),
+      filter var(--set-dur-surface) var(--omni-ease) !important;
+  }
+  [class*="bg-surface-submit"]:hover,
+  .btn[class*="bg-surface-submit"]:hover {
+    filter: brightness(1.08) !important;
+    box-shadow: 0 4px 12px -2px rgba(91, 140, 255, 0.65) !important;
+    transform: translateY(-1px) !important;
+  }
+  [class*="bg-surface-submit"]:active,
+  .btn[class*="bg-surface-submit"]:active {
+    transform: translateY(0) scale(0.98) !important;
+    filter: brightness(0.96) !important;
+  }
+  /* 设置页底部操作区（保存行）：加顶部分隔线，下沉留白 8 / 16 */
+  [class*="flex justify-end gap-4 pt-4"] {
+    margin-top: var(--space-2, 8px) !important;
+    padding-top: var(--space-4, 16px) !important;
+    border-top: 1px solid var(--border-light) !important;
+  }
+
+  /* ===================== 参数滑块（temperature / top_p 等） ===================== */
+  /* Radix Slider 滑块（thumb）：accent 圆点 + 光环 + 抓取反馈 */
+  span[role="slider"] {
+    width: 16px !important;
+    height: 16px !important;
+    border-radius: var(--omni-radius-pill, 9999px) !important;
+    background: rgb(var(--surface-submit)) !important;
+    border: 2px solid #ffffff !important;
+    box-shadow: 0 0 0 3px rgba(91, 140, 255, 0.25),
+      0 1px 3px rgba(0, 0, 0, 0.5) !important;
+    cursor: grab !important;
+    transition: box-shadow var(--set-dur-surface) var(--omni-ease),
+      transform var(--set-dur-press) var(--omni-ease) !important;
+  }
+  span[role="slider"]:active {
+    cursor: grabbing !important;
+    transform: scale(1.15) !important;
+  }
+}
+
+/* ===================== [GLASS-GRADIENT] 设置与表单材质 ===================== */
+div[class*="bg-surface-dialog"][class*="shadow-2xl"] {
+  background: var(--omni-glass-panel-gradient) !important;
+  border-color: var(--omni-glass-border-strong) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  box-shadow: var(--omni-glass-shadow) !important;
+}
+:is(
+  div[class*="flex-1"][class*="flex-col"][class*="gap-4"][class*="overflow-hidden"][class*="p-5"][class*="md:flex-row"][class*="md:gap-6"],
+  div[class*="bg-surface-dialog"][class*="shadow-2xl"]
+) :is(
+  input:not([type="checkbox"]):not([type="radio"]),
+  textarea,
+  [role="combobox"],
+  select
+) {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.008)), rgba(8, 13, 20, 0.62) !important;
+  border-color: var(--omni-glass-border) !important;
+}
+:is(
+  div[class*="flex-1"][class*="flex-col"][class*="gap-4"][class*="overflow-hidden"][class*="p-5"][class*="md:flex-row"][class*="md:gap-6"],
+  div[class*="bg-surface-dialog"][class*="shadow-2xl"]
+) :is(
+  [class*="rounded-xl"][class*="bg-surface-secondary"],
+  [class*="rounded-lg"][class*="bg-surface-secondary"],
+  [class*="rounded-xl"][class*="border"][class*="bg-surface"]
+) {
+  background: var(--omni-glass-gradient), rgba(17, 24, 34, 0.68) !important;
+  border-color: var(--omni-glass-border) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 12px 32px -24px rgba(0, 0, 0, 0.76) !important;
+}
+:is(
+  div[class*="flex-1"][class*="flex-col"][class*="gap-4"][class*="overflow-hidden"][class*="p-5"][class*="md:flex-row"][class*="md:gap-6"],
+  div[class*="bg-surface-dialog"][class*="shadow-2xl"]
+) :is([class*="bg-surface-submit"], .btn[class*="bg-surface-submit"]) {
+  background: var(--omni-brand-gradient) !important;
+  color: #061311 !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+:is(
+  div[class*="flex-1"][class*="flex-col"][class*="gap-4"][class*="overflow-hidden"][class*="p-5"][class*="md:flex-row"][class*="md:gap-6"],
+  div[class*="bg-surface-dialog"][class*="shadow-2xl"]
+) button[role="switch"][data-state="checked"] {
+  background: var(--omni-brand-gradient) !important;
+}

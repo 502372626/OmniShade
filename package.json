@@ -1,0 +1,111 @@
+{
+  "name": "omnishade-desktop",
+  "version": "1.11.1",
+  "description": "OmniShade — 本程序从未授权任何单位或个人进行测试，请立即停止你的违法行为并且记录在案",
+  "main": "loader.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "npm run release",
+    "release": "node scripts/release_orchestrator.js build",
+    "release:preflight": "node scripts/release_orchestrator.js preflight",
+    "release:dry-run": "node scripts/release_orchestrator.js build --dry-run",
+    "test:release": "node scripts/release_orchestrator.test.js && node scripts/release_protect.test.js && node scripts/release_assets.test.js && node scripts/release_verify_artifact.test.js"
+  },
+  "devDependencies": {
+    "@electron/asar": "3.4.1",
+    "electron": "33.4.11",
+    "electron-builder": "25.1.8",
+    "javascript-obfuscator": "5.8.0"
+  },
+  "build": {
+    "appId": "cn.omnishade.desktop",
+    "afterPack": "vmp/protect_afterpack.js",
+    "forceCodeSigning": true,
+    "productName": "OmniShade",
+    "electronLanguages": [
+      "zh-CN",
+      "en-US"
+    ],
+    "compression": "maximum",
+    "directories": {
+      "output": "dist"
+    },
+    "extraResources": [
+      "exe_integrity.json",
+      "exe_integrity.sig"
+    ],
+    "files": [
+      "loader.js",
+      "diagnostics.js",
+      "omni_tls.js",
+      "runtime_key_store.js",
+      "bridge_loader.js",
+      "window_appearance.js",
+      "model_selection.js",
+      "version.js",
+      "latest_update.js",
+      "main.jsc",
+      "bridge.jsc.enc",
+      "license_client.js",
+      "local_auth/gen_license.js",
+      "local_auth/license.key",
+      "local_auth/license_ed25519.pub",
+      "integrity.json",
+      "integrity.sig",
+      "tunnel_mcp_keepalive.bat",
+      "bytenode-lib/**",
+      "preload.js",
+      "omni_agent.js",
+      "ui_shim.js",
+      "ui_shim_loot.js",
+      "ui_shim_weapons.js",
+      "automation_runtime.js",
+      "automation_store.js",
+      "automation_page.js",
+      "kb_path_policy.js",
+      "kb_fts.js",
+      "kb_fts_worker.js",
+      "node_modules/better-sqlite3/**",
+      "node_modules/bindings/**",
+      "node_modules/file-uri-to-path/**",
+      "chat.html",
+      "chat.js",
+      "ui/**",
+      "assets/**",
+      "node_modules/undici/**",
+      "node_modules/minisearch/dist/cjs/**",
+      "payload.js",
+      "payload_worker.js",
+      "product_search_worker.js",
+      "integrity_worker.js",
+      "session_search_worker.js",
+      "session_index_worker.js",
+      "session_messages_worker.js",
+      "upload_index_worker.js",
+      "multipart_extract_worker.js",
+      "bridge_upload.js",
+      "drop_import.js"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "legalTrademarks": "⚠ 本程序从未授权任何单位或个人进行测试，请立即停止你的违法行为并且记录在案",
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "OmniShade",
+      "include": "build/installer.nsh"
+    },
+    "copyright": "Copyright © 2026 — 本程序从未授权任何单位或个人进行测试，请立即停止你的违法行为并且记录在案"
+  },
+  "dependencies": {
+    "better-sqlite3": "12.4.1",
+    "minisearch": "7.2.0",
+    "undici": "6.29.0"
+  }
+}

@@ -1,0 +1,167 @@
+/* =============================================================================
+ * omni-craft-composer.css — Composer 输入区视觉收口（OmniShade omni-craft 工艺）
+ * -----------------------------------------------------------------------------
+ * 对应审计：00-会话督办/06-深度优化/perf-report/ui-composer/COMPOSER-AUDIT.md
+ * 套用方式：index.html 在所有 omni-craft-*.css 之后追加本文件（见 index.html.patch）
+ *
+ * 本文件只做视觉 overlay，四条规则全部不触碰粘贴/键盘/表单链路：
+ *   §1 聚焦态 accent 边框：统一为 teal accent（对齐 [GLASS-GRADIENT] 的品牌色），
+ *      关掉内联 <style id="omni-craft"> 里打在 textarea 上的蓝色 box-shadow，
+ *      消除「外层青、内层蓝」的双高亮打架。ID 选择器(#prompt-textarea)特异性
+ *      (1,1,1) > 内联样式表的 textarea:focus (0,1,1)，稳赢，不需要 !important 火拼。
+ *   §2 发送按钮空输入禁用态：中性实色 + not-allowed 光标 + 去渐变；
+ *      可用态补 pointer 光标。选择器与 omni-craft-chat.css 的 IA-RHYTHM 层同形，
+ *      依赖 link 顺序在本文件之后加载生效（index.html.patch 已保证）。
+ *   §3 字符计数徽标（>5000 显示，配色随长度升级 warn/danger）。
+ *      DOM 由 omni-composer-ux.js 注入，纯展示，pointer-events:none。
+ *   §4 粘贴反馈：文件/大文本粘贴瞬间 composer 表面 90ms teal 闪光。
+ *      类名由 omni-composer-ux.js 挂/摘，不监听任何业务事件。
+ *
+ * 兜底原则：所有颜色走 craft 变量并带 fallback（rgb(var(--x, R G B))），
+ * 无变量环境下降级为等值实色，不会出现裸黑/裸白。
+ * ========================================================================== */
+
+/* ============================== §1 聚焦 accent 边框 ============================== */
+
+/* 1.1 关掉全局蓝环在 composer 内部的残留（内联 omni-craft style 里的
+ *     textarea:focus 蓝色 box-shadow），聚焦高亮只由外层表面承担 */
+#prompt-textarea:focus,
+textarea[data-testid='text-input']:focus {
+  box-shadow: none !important;
+}
+
+/* 1.2 表面聚焦态：teal accent 1.5px 描边 + 品牌色柔光。
+ *     与 [GLASS-GRADIENT] 层同选择器（.omni-route-viewport 前缀），
+ *     本文件后加载 → 同特异性 (0,3,0) 下后者胜出，无 !important 军备竞赛 */
+.omni-route-viewport [data-testid='composer-surface']:focus-within,
+main[role='main'] [data-testid='composer-surface']:focus-within {
+  border-color: rgb(var(--omni-brand-teal, 114 215 211)) !important;
+  box-shadow:
+    0 0 0 1.5px rgb(var(--omni-brand-teal, 114 215 211) / 0.55),
+    0 16px 48px -24px rgb(var(--omni-brand-blue, 104 153 255) / 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.075) !important;
+}
+
+/* 1.3 过渡收口：描边/辉光 240ms（--dur-3 表面态档），与 IA-RHYTHM 层一致 */
+.omni-route-viewport [data-testid='composer-surface'],
+main[role='main'] [data-testid='composer-surface'] {
+  transition:
+    border-color 240ms cubic-bezier(0.2, 0, 0, 1),
+    box-shadow 240ms cubic-bezier(0.2, 0, 0, 1) !important;
+}
+
+/* ============================== §2 发送按钮禁用态 ============================== */
+
+/* 2.1 空输入/生成中/锁定时的禁用态：中性实色底 + 次级文字色 + not-allowed。
+ *     原 IA-RHYTHM 层只降透明度，品牌渐变底仍在，禁用/可用区分度不足 */
+main[role='main'] [data-testid='send-button']:disabled,
+.omni-route-viewport [data-testid='send-button']:disabled {
+  background: rgb(var(--surface-active, 30 36 51)) !important;
+  border-color: transparent !important;
+  color: rgb(var(--text-tertiary, 111 120 137)) !important;
+  opacity: 0.55 !important;
+  cursor: not-allowed !important;
+  box-shadow: none !important;
+  transform: none !important;
+  filter: grayscale(1) !important;   /* 图标箭头一并去色，双通道表达「不可点」 */
+}
+
+/* 2.2 禁用态去掉 [GLASS-GRADIENT] 的 hover 抬升残留 */
+main[role='main'] [data-testid='send-button']:disabled:hover,
+.omni-route-viewport [data-testid='send-button']:disabled:hover {
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* 2.3 可用态：明确可点 */
+main[role='main'] [data-testid='send-button']:not(:disabled),
+.omni-route-viewport [data-testid='send-button']:not(:disabled) {
+  cursor: pointer !important;
+}
+
+/* ============================== §3 字符计数徽标 ============================== */
+
+/* 容器：绝对定位贴 composer 表面右下角（OMNI-COMPOSER-UX 注入到
+ * [data-testid='composer-surface'] 内；表面是 relative，天然锚点） */
+.omni-composer-counter {
+  position: absolute;
+  right: 14px;
+  bottom: 6px;
+  z-index: 30;
+  pointer-events: none;              /* 纯展示，绝不拦截点击/选择 */
+  font-size: 11px;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums; /* 计数不抖动 */
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: rgb(var(--surface-hover, 26 31 43) / 0.92);
+  border: 1px solid var(--border-medium, rgba(255, 255, 255, 0.10));
+  color: rgb(var(--text-secondary, 170 179 197));
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 150ms cubic-bezier(0.2, 0, 0, 1),
+    transform 150ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.omni-composer-counter[data-visible='true'] {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* 超长预警：>5000 字符，amber 调（与 craft 状态色体系一致） */
+.omni-composer-counter[data-level='warn'] {
+  color: rgb(245 186 95);            /* amber-400 实值兜底 */
+  border-color: rgba(245, 186, 95, 0.35);
+  background: rgba(46, 34, 15, 0.92);
+}
+
+/* 危险档：≥20000 字符（折叠阈值 2500 的 8 倍，明显超长），red 调 */
+.omni-composer-counter[data-level='danger'] {
+  color: rgb(248 113 113);           /* red-400 实值兜底 */
+  border-color: rgba(248, 113, 113, 0.4);
+  background: rgba(50, 17, 17, 0.92);
+}
+
+/* ============================== §4 粘贴反馈闪光 ============================== */
+
+@keyframes omni-composer-paste-glow {
+  0% {
+    box-shadow:
+      0 0 0 1.5px rgb(var(--omni-brand-teal, 114 215 211) / 0.0),
+      0 16px 48px -24px rgb(var(--omni-brand-blue, 104 153 255) / 0.0),
+      inset 0 1px 0 rgba(255, 255, 255, 0.075);
+  }
+  35% {
+    box-shadow:
+      0 0 0 2.5px rgb(var(--omni-brand-teal, 114 215 211) / 0.75),
+      0 20px 56px -20px rgb(var(--omni-brand-blue, 104 153 255) / 0.5),
+      inset 0 1px 0 rgba(255, 255, 255, 0.09);
+  }
+  100% {
+    box-shadow:
+      0 0 0 1.5px rgb(var(--omni-brand-teal, 114 215 211) / 0.0),
+      0 16px 48px -24px rgb(var(--omni-brand-blue, 104 153 255) / 0.0),
+      inset 0 1px 0 rgba(255, 255, 255, 0.075);
+  }
+}
+
+/* 由 omni-composer-ux.js 在粘贴（文件或 >2500 字符文本）时挂上，950ms 后自动摘除。
+ * 注意动画只打 box-shadow，不占 layout/paint 大面积，合成器友好 */
+[data-testid='composer-surface'].omni-composer-paste-flash {
+  animation: omni-composer-paste-glow 950ms cubic-bezier(0.2, 0, 0, 1) 1;
+}
+
+/* ============================== 无障碍 ============================== */
+
+@media (prefers-reduced-motion: reduce) {
+  [data-testid='composer-surface'].omni-composer-paste-flash {
+    animation-duration: 1ms !important;   /* 保留「状态变化」事实，去掉运动 */
+  }
+  .omni-composer-counter {
+    transition: none !important;
+  }
+  .omni-route-viewport [data-testid='composer-surface'],
+  main[role='main'] [data-testid='composer-surface'] {
+    transition: none !important;
+  }
+}

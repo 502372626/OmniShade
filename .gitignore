@@ -1,0 +1,41 @@
+# 依赖与构建产物
+node_modules/
+dist/
+dist-local/
+build/
+out/
+*.7z
+*.exe
+*.dmg
+*.AppImage
+
+# 运行时数据 / 凭证
+.secrets/
+*.key
+*.pem
+!assets/omni.crt
+runtime_key.json
+account.json
+account_index.json
+models.json
+*.log
+
+# 内部资料
+audit/
+_archive/
+_build_snapshots/
+_sessions/
+00-会话督办/
+
+# 系统
+.DS_Store
+Thumbs.db
+
+# 构建缓存 / 审计沙箱 / 内部产物
+build/
+audit_adv_shim/
+audit*/
+_sessions/
+*.7z
+*.bin
+product_data/

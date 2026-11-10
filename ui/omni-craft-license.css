@@ -1,0 +1,878 @@
+/* =============================================================================
+ * omni-craft-license.css — 「本机授权」面板工艺覆盖层 (与 omni-craft 同工艺)
+ * -----------------------------------------------------------------------------
+ * 作用域: 仅 .omni-license* / #omni-license* 自有节点，不碰 LibreChat 任何 class。
+ *         面板由 ui/omni-license-panel.js 挂载，片段在 ui/omni-license-panel.html。
+ *
+ * 工艺基线 (复用 index.html inline #omni-craft 令牌，禁止二次硬编码漂移):
+ *   表面  --surface-primary #0c0e13 / --surface-secondary #11141b / --surface-tertiary #161a23
+ *   文字  --text-primary #e9edf5 / --text-secondary #aab3c5
+ *   边线  --border-light / --border-medium / --border-heavy / --border-xheavy
+ *   强调  --accent-primary #5b8cff / --accent-primary-hover #6f9bff
+ *   圆角  --radius 12px      主曲线 cubic-bezier(0.22, 1, 0.36, 1)
+ *
+ * ⚠ 已知坑: --surface-* / --text-* / --accent-* 是「十六进制」令牌，
+ *     塞进 rgb()/rgba() 的 var() 包装里语法非法 → 整条声明失效。
+ *     本文件需要 alpha 时一律用 -rgb 三元组令牌 (--olc-accent-rgb 等)，
+ *     或直接用 rgba() 字面量，不对十六进制令牌做 rgb 包装。
+ *
+ * 对比度: 全部前景/背景配对实测 ≥4.5:1 (WCAG AA 正文)，数值见
+ *         desktop/_contrast_report.md 的 omni-craft-license.css 段。
+ *         --text-tertiary #6f7889 (4.14:1) 与 --text-muted #59617a (3.00:1)
+ *         在 #11141b 上不达标，本文件禁用，次级文字一律用 #aab3c5 / #8f9ab1。
+ *
+ * 生效装配: index.html 已有 8 条 omni-craft link，本文件为第 9 条，追加在
+ *           omni-craft-system.css 之后（覆盖顺序在最后）。
+ * ========================================================================== */
+
+:root {
+  /* 面板自有令牌（不覆盖全局，仅本文件使用） */
+  --olc-radius-xs: var(--omni-radius-xs, 4px);
+  --olc-radius-sm: var(--omni-radius-sm, 8px);
+  --olc-radius-md: var(--omni-radius-md, 12px);
+  --olc-radius-lg: var(--omni-radius-lg, 16px);
+  --olc-ease: var(--omni-ease, cubic-bezier(0.22, 1, 0.36, 1));   /* 统一挂到全局 --omni-ease，不再二次硬编码 */
+  --olc-ease-soft: var(--olc-ease);   /* 原 0.4,0,0.2,1 → 并入主曲线，全站只留一条缓动 */
+  --olc-accent-rgb: 91 140 255;                          /* = #5b8cff，空格三元组 → rgb(var() / a) */
+  --olc-ok: #7ce0b8;                                    /* 已激活   8.69:1 on #11141b */
+  --olc-ok-rgb: 124 224 184;
+  --olc-warn: #ffc978;                                  /* 绑定不匹配 8.90:1 */
+  --olc-warn-rgb: 255 201 120;
+  --olc-err: #ffb3a7;                                   /* 已过期   8.86:1 */
+  --olc-err-rgb: 255 179 167;
+  --olc-dim: #8f9ab1;                                   /* 次级说明 6.51:1 */
+  --olc-panel-bg: #11141b;                              /* = --surface-secondary */
+  --olc-card-bg: #161a23;                               /* = --surface-tertiary */
+}
+
+/* ============================== 入口按钮 ============================== */
+/* 常驻右下角悬浮入口：设置页 / 登录后均可见（本机版无登录门控） */
+#omni-license-entry.omni-license__entry {
+  position: fixed;
+  right: 16px;
+  bottom: 48px;   /* [AUDIT-FIX] 60px 破格 → 48（--space-6） */
+  z-index: 60;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;   /* [AUDIT-FIX] 8/14 破格 → 8/16 */
+  border-radius: var(--olc-radius-md);
+  border: 1px solid rgb(var(--olc-accent-rgb) / 0.42);
+  background-color: #161a23;
+  color: #e9edf5;                                        /* 14.84:1 on #161a23 */
+  font-size: 13px;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35),
+    0 10px 26px -14px rgb(var(--olc-accent-rgb) / 0.75);
+  transition: transform 150ms var(--olc-ease),   /* [AUDIT-FIX] 0.22s → 150ms 微交互档 */
+    border-color 150ms var(--olc-ease),
+    background-color 150ms var(--olc-ease),
+    box-shadow 150ms var(--olc-ease);
+}
+#omni-license-entry.omni-license__entry:hover {
+  background-color: #1a1f2b;
+  border-color: rgb(var(--olc-accent-rgb) / 0.72);
+  transform: translateY(-1px);
+}
+#omni-license-entry.omni-license__entry:active {
+  transform: translateY(0) scale(0.985);
+}
+#omni-license-entry.omni-license__entry:focus-visible {
+  /* [AUDIT-FIX] 全站焦点统一：2px accent 外圈 + 2px 偏移（原 box-shadow 半透明环） */
+  outline: 2px solid #5b8cff;
+  outline-offset: 2px;
+  border-color: #5b8cff;
+  box-shadow: 0 0 0 2px rgb(var(--olc-accent-rgb) / 0.55),
+    0 0 18px -4px rgb(var(--olc-accent-rgb) / 0.7);
+}
+/* 入口徽点：状态染色（data-state 由 JS 写） */
+#omni-license-entry .omni-license__entry-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--omni-radius-pill, 9999px);
+  background-color: #8f9ab1;
+  box-shadow: 0 0 0 3px rgba(143, 154, 177, 0.18);
+  transition: background-color 150ms var(--olc-ease),   /* [AUDIT-FIX] 0.22s → 150ms */
+    box-shadow 150ms var(--olc-ease);
+}
+#omni-license-entry[data-state="active"] .omni-license__entry-dot {
+  background-color: var(--olc-ok);
+  box-shadow: 0 0 0 3px rgb(var(--olc-ok-rgb) / 0.22);
+}
+#omni-license-entry[data-state="expired"] .omni-license__entry-dot,
+#omni-license-entry[data-state="error"] .omni-license__entry-dot {
+  background-color: var(--olc-err);
+  box-shadow: 0 0 0 3px rgb(var(--olc-err-rgb) / 0.22);
+}
+#omni-license-entry[data-state="mismatch"] .omni-license__entry-dot {
+  background-color: var(--olc-warn);
+  box-shadow: 0 0 0 3px rgb(var(--olc-warn-rgb) / 0.22);
+}
+
+/* ============================== 面板容器 ============================== */
+.omni-license {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  justify-content: flex-end;
+}
+.omni-license[hidden] {
+  display: none !important;
+}
+.omni-license__scrim {
+  position: absolute;
+  inset: 0;
+  background-color: rgba(8, 10, 14, 0.62);
+  backdrop-filter: none;
+  opacity: 0;
+  transition: opacity 250ms var(--olc-ease);   /* [AUDIT-FIX] 0.28s → 250ms 面板档 */
+}
+.omni-license[data-state="open"] .omni-license__scrim {
+  opacity: 1;
+}
+
+.omni-license__sheet {
+  position: relative;
+  width: 440px;
+  max-width: 92vw;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 24px;   /* [AUDIT-FIX] 20px 破格 → 24（--space-5） */
+  overflow-y: auto;
+  background-color: var(--olc-panel-bg);
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  color: #e9edf5;                                        /* 15.70:1 on #11141b */
+  box-shadow: -18px 0 46px -22px rgba(0, 0, 0, 0.85);
+  transform: translateX(100%);
+  opacity: 0.6;
+  /* [AUDIT-FIX] 抽屉滑入 = 大过渡档 400ms（原 0.34s）；scrim 淡入归 250ms 面板档 */
+  transition: transform 400ms var(--olc-ease), opacity 250ms var(--olc-ease);
+}
+.omni-license[data-state="open"] .omni-license__sheet {
+  transform: translateX(0);
+  opacity: 1;
+}
+/* 行内挂载模式（嵌进设置页容器时不浮层、不位移） */
+.omni-license--inline {
+  position: relative;
+  inset: auto;
+  z-index: auto;
+  display: block;
+}
+.omni-license--inline .omni-license__scrim {
+  display: none;
+}
+.omni-license--inline .omni-license__sheet {
+  width: 100%;
+  max-width: none;
+  height: auto;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--olc-radius-lg);
+  transform: none;
+  opacity: 1;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 30px -16px rgba(0, 0, 0, 0.7);
+}
+
+/* ============================== 头部 ============================== */
+.omni-license__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.omni-license__title {
+  margin: 0;
+  font-size: var(--fs-5, 16px);   /* G31: 旧 15px 野值归并到阶梯 5 */
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: #e9edf5;                                        /* 15.70:1 */
+  background-color: var(--olc-panel-bg);
+}
+.omni-license__subtitle {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #aab3c5;                                        /* 8.74:1 */
+  background-color: var(--olc-panel-bg);
+}
+.omni-license__close {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--olc-radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: #161a23;
+  color: #aab3c5;                                        /* 8.26:1 on #161a23 */
+  font-size: var(--fs-5, 16px);   /* G31: 旧 15px 野值归并到阶梯 5 */
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 150ms var(--olc-ease),   /* [AUDIT-FIX] 0.2s → 150ms */
+    color 150ms var(--olc-ease), border-color 150ms var(--olc-ease);
+}
+.omni-license__close:hover {
+  background-color: #1a1f2b;
+  color: #e9edf5;
+  border-color: rgba(255, 255, 255, 0.16);
+}
+.omni-license__close:focus-visible {
+  /* [AUDIT-FIX] 全站焦点统一：2px accent 外圈 + 2px 偏移 */
+  outline: 2px solid #5b8cff;
+  outline-offset: 2px;
+  border-color: #5b8cff;
+  box-shadow: 0 0 0 2px rgb(var(--olc-accent-rgb) / 0.5);
+}
+
+/* ============================== 状态徽章 ============================== */
+/* 双层背景：内层半透明玻璃，外层渐变描边；data-state 只换色不改结构。 */
+.omni-license__status {
+  display: flex;
+  align-items: center;
+  gap: 8px;   /* [AUDIT-FIX] 9px 破格 → 8（--space-2） */
+  padding: 12px 16px;   /* [AUDIT-FIX] 11/14 破格 → 12/16 */
+  border: 1px solid transparent;
+  border-radius: var(--omni-radius-pill, 9999px);
+  background:
+    linear-gradient(135deg, rgba(70, 78, 96, 0.46), rgba(27, 32, 43, 0.72)) padding-box,
+    linear-gradient(120deg, rgba(194, 204, 221, 0.34), rgba(108, 120, 141, 0.12)) border-box;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  color: #c3cbd8;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 10px 26px -22px rgba(0, 0, 0, 0.9);
+  transition: box-shadow 250ms var(--olc-ease), color 250ms var(--olc-ease);   /* [AUDIT-FIX] 0.24s → 250ms */
+}
+.omni-license__status-dot {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: var(--omni-radius-pill, 9999px);
+  background: linear-gradient(135deg, #d2d8e2, #798599 72%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42),
+    0 0 0 3px rgba(143, 154, 177, 0.1);
+}
+.omni-license__status[data-state="inactive"],
+.omni-license__status[data-state="unknown"] {
+  background:
+    linear-gradient(135deg, rgba(73, 81, 97, 0.44), rgba(29, 34, 45, 0.74)) padding-box,
+    linear-gradient(120deg, rgba(184, 194, 211, 0.32), rgba(105, 116, 135, 0.12)) border-box;
+  color: #c3cbd8;
+}
+.omni-license__status[data-state="inactive"] .omni-license__status-dot,
+.omni-license__status[data-state="unknown"] .omni-license__status-dot {
+  background: linear-gradient(135deg, #d2d8e2, #798599 72%);
+}
+.omni-license__status[data-state="active"] {
+  background:
+    linear-gradient(135deg, rgba(34, 105, 79, 0.68), rgba(17, 51, 45, 0.76)) padding-box,
+    linear-gradient(120deg, rgba(158, 244, 205, 0.72), rgba(53, 208, 165, 0.24) 58%, rgba(91, 140, 255, 0.2)) border-box;
+  color: #b8f5da;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 10px 28px -20px rgb(var(--olc-ok-rgb) / 0.58);
+}
+.omni-license__status[data-state="active"] .omni-license__status-dot {
+  background: linear-gradient(135deg, #d4ffea, #55dfa9 58%, #25a67e);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    0 0 0 3px rgb(var(--olc-ok-rgb) / 0.12),
+    0 0 12px -1px rgb(var(--olc-ok-rgb) / 0.72);
+}
+.omni-license__status[data-state="expired"],
+.omni-license__status[data-state="error"] {
+  background:
+    linear-gradient(135deg, rgba(112, 52, 53, 0.58), rgba(49, 29, 35, 0.76)) padding-box,
+    linear-gradient(120deg, rgba(255, 179, 167, 0.62), rgba(255, 179, 167, 0.14)) border-box;
+  color: #ffc6bc;
+}
+.omni-license__status[data-state="expired"] .omni-license__status-dot,
+.omni-license__status[data-state="error"] .omni-license__status-dot {
+  background: linear-gradient(135deg, #ffd8d0, #ff8f7f);
+  box-shadow: 0 0 10px -1px rgb(var(--olc-err-rgb) / 0.8);
+}
+.omni-license__status[data-state="mismatch"] {
+  background:
+    linear-gradient(135deg, rgba(112, 79, 37, 0.58), rgba(50, 40, 27, 0.76)) padding-box,
+    linear-gradient(120deg, rgba(255, 201, 120, 0.62), rgba(255, 201, 120, 0.14)) border-box;
+  color: #ffd89d;
+}
+.omni-license__status[data-state="mismatch"] .omni-license__status-dot {
+  background: linear-gradient(135deg, #ffe5b7, #f0a33c);
+  box-shadow: 0 0 10px -1px rgb(var(--olc-warn-rgb) / 0.8);
+}
+
+/* ============================== 卡片 / 行 ============================== */
+/* 渐变描边 + 半透明内层，毛玻璃只作用于容器，文字保持实色可读。 */
+.omni-license__card {
+  position: relative;
+  padding: 16px;
+  border: 1px solid transparent;
+  border-radius: var(--omni-radius-card, 14px);
+  background:
+    radial-gradient(circle at 0 0, rgb(var(--olc-accent-rgb) / 0.11), transparent 44%) padding-box,
+    linear-gradient(145deg, rgba(31, 38, 53, 0.82), rgba(15, 19, 28, 0.7)) padding-box,
+    linear-gradient(135deg, rgba(139, 161, 255, 0.5), rgba(255, 255, 255, 0.09) 46%, rgba(53, 208, 165, 0.25)) border-box;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;   /* [AUDIT-FIX] 11px 破格 → 12（--space-3） */
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 14px 34px -26px rgba(0, 0, 0, 0.95);
+  transition: transform 250ms var(--olc-ease), box-shadow 250ms var(--olc-ease);   /* [AUDIT-FIX] 0.24s → 250ms */
+}
+.omni-license__card:has(#omni-license-plan) {
+  background:
+    radial-gradient(circle at 100% 0, rgb(var(--olc-ok-rgb) / 0.1), transparent 42%) padding-box,
+    linear-gradient(145deg, rgba(29, 39, 52, 0.84), rgba(14, 20, 28, 0.72)) padding-box,
+    linear-gradient(120deg, rgba(111, 155, 255, 0.62), rgba(124, 224, 184, 0.34) 52%, rgba(255, 255, 255, 0.09)) border-box;
+}
+.omni-license__card:hover {
+  transform: translateY(-3px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 18px 38px -24px rgb(var(--olc-accent-rgb) / 0.32),
+    0 12px 28px -20px rgba(0, 0, 0, 0.92);
+}
+.omni-license__card:focus-within {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 0 0 1px rgb(var(--olc-accent-rgb) / 0.24),
+    0 16px 36px -24px rgb(var(--olc-accent-rgb) / 0.3);
+}
+.omni-license__card-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: #aab3c5;
+  background-color: transparent;
+}
+.omni-license__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.omni-license__label {
+  font-size: 12px;
+  color: #8f9ab1;
+  background-color: transparent;
+}
+.omni-license__value {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e9edf5;
+  background-color: transparent;
+}
+/* 指纹等长串：等宽 + 可换行，避免撑破面板 */
+.omni-license__fp {
+  font-family: "JetBrains Mono", "Cascadia Mono", Consolas, ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  padding: 8px 12px;   /* [AUDIT-FIX] 8/10 破格 → 8/12 */
+  border-radius: var(--olc-radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background-color: #0c0e13;                             /* 比卡片更深一层，代码块感 */
+  color: #e9edf5;                                        /* 16.45:1 on #0c0e13 */
+  word-break: break-all;
+  line-height: 1.6;
+}
+.omni-license__fp[data-state="empty"] {
+  color: #aab3c5;                                        /* 9.16:1 on #0c0e13 */
+}
+/* 元信息 2×2 网格 */
+.omni-license__meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.omni-license__meta-item {
+  padding: 12px;   /* [AUDIT-FIX] 11/12 破格 → 12 对称 */
+  border-radius: var(--omni-radius-control, 10px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.018));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+.omni-license__meta-key {
+  display: block;
+  font-size: 11px;
+  color: #8f9ab1;
+  background-color: transparent;
+  margin-bottom: 4px;
+}
+.omni-license__meta-val {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #e9edf5;
+  background-color: transparent;
+}
+
+/* ============================== 离线校验结果 ============================== */
+.omni-license__verify {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;   /* [AUDIT-FIX] 10/12 破格 → 8/12 */
+  border-radius: var(--olc-radius-sm);
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  background-color: var(--olc-card-bg);
+}
+.omni-license__verify-text {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #aab3c5;                                        /* 8.26:1 */
+  background-color: var(--olc-card-bg);
+}
+.omni-license__verify-code {
+  flex: none;
+  font-family: "JetBrains Mono", "Cascadia Mono", Consolas, ui-monospace, monospace;
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: var(--olc-radius-xs);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: #0c0e13;
+  color: #aab3c5;                                        /* 9.16:1 on #0c0e13 */
+}
+.omni-license__verify[data-state="ok"] .omni-license__verify-code {
+  color: var(--olc-ok);                                  /* 12.14:1 on #0c0e13 */
+  border-color: rgb(var(--olc-ok-rgb) / 0.35);
+}
+.omni-license__verify[data-state="fail"] .omni-license__verify-code {
+  color: var(--olc-err);                                 /* 11.27:1 on #0c0e13 */
+  border-color: rgb(var(--olc-err-rgb) / 0.35);
+}
+
+/* ============================== 激活区 ============================== */
+.omni-license__field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.omni-license__hint {
+  font-size: 11px;
+  line-height: 1.6;
+  color: #8f9ab1;                                        /* 6.16:1 */
+  background-color: var(--olc-card-bg);
+}
+.omni-license__input {
+  width: 100%;
+  min-height: 96px;
+  resize: vertical;
+  padding: 8px 12px;   /* [AUDIT-FIX] 10/12 破格 → 8/12 */
+  border-radius: var(--olc-radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: #0c0e13;
+  color: #e9edf5;                                        /* 16.45:1 */
+  font-family: "JetBrains Mono", "Cascadia Mono", Consolas, ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  transition: border-color 150ms var(--olc-ease),   /* [AUDIT-FIX] 0.2s → 150ms */
+    box-shadow 150ms var(--olc-ease), background-color 150ms var(--olc-ease);
+}
+.omni-license__input::placeholder {
+  color: #8f9ab1;                                        /* 6.83:1 on #0c0e13 */
+  opacity: 1;
+}
+.omni-license__input:focus {
+  border-color: #5b8cff;
+  background-color: #0c0e13;
+  box-shadow: 0 0 0 1px rgb(var(--olc-accent-rgb) / 0.55),
+    0 0 16px -3px rgb(var(--olc-accent-rgb) / 0.55);
+}
+/* [AUDIT-FIX] 全站焦点统一：键盘焦点 2px accent 外圈 + 2px 偏移（与 system ⑪ 分层同构：
+ *    :focus 走辉光、:focus-visible 才画描边，避免鼠标点击也出现外环） */
+.omni-license__input:focus-visible {
+  outline: 2px solid #5b8cff;
+  outline-offset: 2px;
+}
+/* 文件选择：原生 input 视觉不可读，用 label 做按钮，input 仅保留可访问性 */
+.omni-license__file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.omni-license__file-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;   /* [AUDIT-FIX] 6px 破格 → 8（--space-2） */
+  padding: 8px 12px;
+  border-radius: var(--olc-radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background-color: #0c0e13;
+  color: #aab3c5;                                        /* 9.16:1 */
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 150ms var(--olc-ease),   /* [AUDIT-FIX] 0.2s → 150ms */
+    color 150ms var(--olc-ease), background-color 150ms var(--olc-ease);
+}
+.omni-license__file-label:hover {
+  color: #e9edf5;
+  border-color: rgb(var(--olc-accent-rgb) / 0.5);
+  background-color: #11141b;
+}
+.omni-license__file-label:focus-within {
+  border-color: #5b8cff;
+  box-shadow: 0 0 0 2px rgb(var(--olc-accent-rgb) / 0.45);
+}
+.omni-license__file-name {
+  font-size: 11px;
+  color: #8f9ab1;                                        /* 6.51:1 on #11141b */
+  background-color: var(--olc-panel-bg);
+  word-break: break-all;
+}
+.omni-license__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.omni-license__btn {
+  padding: 8px 16px;   /* [AUDIT-FIX] 8/14 破格 → 8/16 */
+  border-radius: var(--olc-radius-sm);
+  border: 1px solid transparent;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 150ms var(--olc-ease),   /* [AUDIT-FIX] 0.2s → 150ms */
+    background-color 150ms var(--olc-ease),
+    border-color 150ms var(--olc-ease), box-shadow 150ms var(--olc-ease);
+}
+.omni-license__btn:active {
+  transform: scale(0.985);
+}
+.omni-license__btn:focus-visible {
+  /* [AUDIT-FIX] 全站焦点统一：2px accent 外圈 + 2px 偏移 */
+  outline: 2px solid #5b8cff;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px rgb(var(--olc-accent-rgb) / 0.55);
+}
+.omni-license__btn--primary {
+  background-color: #5b8cff;
+  border-color: #5b8cff;
+  color: #0b0d12;                                        /* 深字 on 蓝底，实测 ≥4.5 */
+  box-shadow: 0 6px 18px -10px rgb(var(--olc-accent-rgb) / 0.9);
+}
+.omni-license__btn--primary:hover {
+  background-color: #6f9bff;
+  border-color: #6f9bff;
+}
+.omni-license__btn--ghost {
+  background-color: #161a23;
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #aab3c5;                                        /* 8.26:1 */
+}
+.omni-license__btn--ghost:hover {
+  background-color: #1a1f2b;
+  color: #e9edf5;
+}
+.omni-license__btn[disabled] {
+  opacity: 0.5;   /* [AUDIT-FIX] 0.55 越档 → 全站统一禁用档 0.5 */
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ============================== 消息行 ============================== */
+.omni-license__msg {
+  min-height: 18px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #aab3c5;                                        /* 8.74:1 */
+  background-color: var(--olc-panel-bg);
+}
+.omni-license__msg[data-tone="ok"] {
+  color: var(--olc-ok);                                  /* 11.59:1 */
+}
+.omni-license__msg[data-tone="err"] {
+  color: var(--olc-err);                                 /* 10.76:1 */
+}
+.omni-license__msg[data-tone="warn"] {
+  color: var(--olc-warn);                                /* 12.18:1 */
+}
+
+/* ============================== 加载态 ============================== */
+.omni-license__loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;   /* [AUDIT-FIX] 10px 破格 → 8（--space-2） */
+  padding: 12px 16px;   /* [AUDIT-FIX] 12/14 破格 → 12/16 */
+  border-radius: var(--olc-radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background-color: var(--olc-card-bg);
+  color: #aab3c5;                                        /* 8.26:1 */
+  font-size: 12px;
+}
+.omni-license__loading[hidden] {
+  display: none !important;
+}
+@keyframes omni-license-spin {
+  to { transform: rotate(360deg); }
+}
+.omni-license__spinner {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  border-radius: var(--omni-radius-pill, 9999px);
+  border: 2px solid rgb(var(--olc-accent-rgb) / 0.22);
+  border-top-color: #5b8cff;
+  animation: omni-license-spin 0.8s linear infinite;  /* 例外保留 linear：无限旋转需匀速 */
+  will-change: transform;
+}
+/* 骨架占位：读取指纹/校验期间顶住布局，避免面板高度跳动 */
+@keyframes omni-license-shimmer {
+  0%   { background-position: -120% 0; }
+  100% { background-position: 220% 0; }
+}
+.omni-license__skeleton {
+  /* G13: span 默认 inline → height/width 全失效、骨架根本画不出来；
+     必须 block 才能顶住布局做占位。 */
+  display: block;
+  width: 100%;
+  height: 12px;
+  border-radius: var(--olc-radius-xs);
+  background: linear-gradient(
+      100deg,
+      #161a23 35%,
+      rgb(var(--olc-accent-rgb) / 0.14) 50%,
+      #161a23 65%
+    );
+  background-size: 220% 100%;
+  animation: omni-license-shimmer 1.6s var(--olc-ease-soft) infinite;
+}
+
+/* ============================== 空态 ============================== */
+.omni-license__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px 16px;   /* [AUDIT-FIX] 20/16 破格 → 24/16 */
+  border-radius: var(--olc-radius-md);
+  border: 1px dashed rgba(255, 255, 255, 0.16);
+  background-color: var(--olc-card-bg);
+  text-align: center;
+}
+.omni-license__empty[hidden] {
+  display: none !important;
+}
+.omni-license__empty-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #e9edf5;                                        /* 14.84:1 */
+  background-color: var(--olc-card-bg);
+}
+.omni-license__empty-desc {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #aab3c5;                                        /* 8.26:1 */
+  background-color: var(--olc-card-bg);
+}
+.omni-license__empty-mark {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--olc-radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgb(var(--olc-accent-rgb) / 0.35);
+  background-color: #0c0e13;
+  color: #5b8cff;                                        /* 6.10:1 on #0c0e13 */
+  font-size: 16px;
+}
+
+/* ============================== 动效降级 ============================== */
+@media (prefers-reduced-motion: reduce) {
+  .omni-license__sheet,
+  .omni-license__scrim,
+  .omni-license__btn,
+  .omni-license__card,
+  .omni-license__status,
+  .omni-license__kb-fill,
+  #omni-license-entry.omni-license__entry {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+  .omni-license__card:hover {
+    transform: none;
+  }
+  .omni-license__spinner {
+    animation: omni-license-spin 1.4s linear infinite !important;  /* 例外保留 linear：同上 */
+  }
+}
+
+/* ============================== 独立页铺开态 ============================== */
+/* [G13] 片段文件被直接按 URL 打开（静态 server / 无头截图 / 浏览器直开）：
+   原本 .omni-license 是 position:fixed 的右抽屉，抽屉外全是被 scrim 盖住的空白，
+   截图看着还是「空」。这里切成本文流铺开：面板占满正文宽度，字段一个不漏地铺出来。 */
+html.omni-license-standalone {
+  background-color: #080a0e;                            /* = 全站 --surface-base */
+}
+html.omni-license-standalone body {
+  margin: 0;
+  min-height: 100vh;
+  background-color: #080a0e;
+  color: #e9edf5;
+  font-family: "Inter", "Microsoft YaHei", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.omni-license--page {
+  position: static;
+  inset: auto;
+  z-index: auto;
+  display: block;
+  padding: 32px 24px;                                    /* 8 的倍数 */
+}
+.omni-license--page[hidden] {
+  display: none !important;
+}
+.omni-license--page .omni-license__scrim {
+  display: none;                                         /* 独立页没有遮罩对象 */
+}
+.omni-license--page .omni-license__sheet {
+  width: 100%;
+  max-width: 720px;
+  height: auto;
+  max-height: none;
+  margin: 0 auto;
+  padding: 24px;                                         /* 8 的倍数 */
+  gap: 16px;                                             /* 8 的倍数 */
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--olc-radius-lg);
+  transform: none;                                       /* 抽屉位移在独立页下无意义 */
+  opacity: 1;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 30px -16px rgba(0, 0, 0, 0.7);
+  transition: none;                                      /* 独立页不做进出场动画 */
+}
+/* 独立页里入口按钮仍在（右下角），但不该抢焦点：保留可点、弱化存在感 */
+html.omni-license-standalone #omni-license-entry.omni-license__entry {
+  opacity: 0.9;
+}
+
+
+/* ── 套餐与用量：知识库配额进度条 ─────────────────────────────────────
+   渐变填充 + 圆角玻璃轨道；0% 保留 3px 起笔，右侧量化文本始终可读。 */
+.omni-license__kb-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;   /* [AUDIT-FIX] 10px 破格 → 8（--space-2） */
+  margin-top: 12px;
+}
+.omni-license__kb-bar {
+  position: relative;
+  flex: 1 1 auto;
+  height: 10px;
+  border-radius: var(--omni-radius-pill, 9999px);
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.018)),
+    rgba(7, 11, 18, 0.74);
+  -webkit-box-shadow: inset 0 0 0 1px rgba(164, 181, 214, 0.18),
+    inset 0 2px 4px rgba(0, 0, 0, 0.38);
+}
+.omni-license__kb-fill {
+  height: 100%;
+  width: 0%;
+  min-width: 3px;
+  border-radius: var(--omni-radius-pill, 9999px);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0) 62%),
+    linear-gradient(90deg, #35d0a5 0%, #5b8cff 58%, #9b8cff 100%);
+  box-shadow: 0 0 14px -3px rgba(53, 208, 165, 0.7),
+    inset 0 1px 0 rgba(255, 255, 255, 0.24);
+  transition: width 250ms var(--olc-ease);   /* [AUDIT-FIX] 0.35s → 250ms 面板档 */
+}
+.omni-license__kb-fill[data-tone="warn"] {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0) 62%),
+    linear-gradient(90deg, #f0a33c 0%, #ff816c 100%);
+  box-shadow: 0 0 14px -3px rgba(240, 163, 60, 0.68),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+.omni-license__kb-text {
+  flex: 0 0 auto;
+  color: #aab3c5;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+}
+.omni-license__kb-bar::after { content: none; }
+
+.omni-license__meta-val[data-tone="ok"]   { color: #7ce0b8; }
+.omni-license__meta-val[data-tone="kb"]   { color: #8bb8ff; }
+.omni-license__meta-val[data-tone="soft"] { color: #7ce0b8; }
+.omni-license__meta-val[data-tone="warn"] { color: #ffc978; }
+
+
+/* ── 套餐与用量：长账号换行，保持两列网格不溢出 ───────────────────── */
+.omni-license__meta-val {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+
+/* 邮箱单行省略：break-all 会把单词从中间劈开（cattest39353@exampl|e.com），
+   改用省略号保形，完整值放 title 里。 */
+#omni-license-plan-email,
+#omni-license-bound {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+
+/* ── 实测修正（G84）：不猜，按 getBoundingClientRect 调 ──────────────────
+   1) plan-email 之前 scrollW 185 > clientW 139，ellipsis 截成 `...@exam...`，
+      域名后半截全丢；邮箱是账号标识，必须完整可见 → 允许换行。
+   2) bound 的 overflowPx 正好 0（贴边压线）→ 右侧留 8px 呼吸。
+   3) kb-bar 0% 时整条全空，看着像渲染失败 → 轨道加深 + 右侧补百分比。 */
+#omni-license-plan-email {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.35;
+}
+#omni-license-bound {
+  padding-right: 8px;
+}
+
+
+/* ── 交付级收尾（G85）─────────────────────────────────────────────────
+   页脚「数据源：本机回环 API…」是排障信息，使用中性灰避免误读成状态告警。
+   [AUDIT-FIX 2026-11-07] 对比度：48% 半透明合成后仅 2.93:1（12px 正文需 ≥4.5），
+   提亮到 68% → 实测 4.64:1；仍是全页最弱一档，层级语义不变。 */
+.omni-license__source,
+.omni-license__footer,
+#omni-license-source-line,
+.omni-license__data-source {
+  color: color-mix(in srgb, currentColor 68%, transparent) !important;
+  opacity: 1;
+}
+
+/* 排障信息用中性灰：只有真正代表状态的 ok/err/warn 才给彩色
+   [AUDIT-FIX] 52% 合成后约 3.2:1，同口径提亮到 68%（≥4.5:1） */
+.omni-license__msg[data-tone="info"] {
+  color: color-mix(in srgb, currentColor 68%, transparent);
+}

@@ -1,0 +1,505 @@
+/* =============================================================================
+ * omni-craft-states.css — OmniShade 空态 / 加载态 / 错误态 工艺覆盖层 (OVERRIDE ONLY)
+ * -----------------------------------------------------------------------------
+ * G74 重写：原版 21 条规则里 15 条选择器在当前构建 0 命中（py-16 / min-h-40 /
+ * border-dashed / submitting / result-thinking / omni-chrome-error 这些锚点构建里
+ * 根本不存在），空态层等于没生效。本轮逐场景实测（CDP + 9 个真状态）后重挂锚点。
+ *
+ * 实测证据（1440×900 深色，ui_shim 直起，shots-g74/）：
+ *   活锚点：.spinner（会话加载遮罩 1/1 可见）、.shimmer（工具状态文字 2/2）、
+ *           div.animate-pulse（工具图标块 1/1）、
+ *           [data-testid="convo-list-empty"]（无会话 / 无搜索结果）、
+ *           div.rounded-lg.border.border-border-light.p-6:has(>div.size-10)（提示词/记忆/书签空卡）、
+ *           table td.h-24.text-center（文件管理空表行）、
+ *           [class*="bg-status-error-subtle"] / [class*="border-status-error-border"]（错误卡）。
+ *   死锚点（本构建无此结构，已删）：[class*="border-dashed"]、.animate-spin.border-blue-600、
+ *           .submitting .result-thinking:empty:last-child::after、.omni-chrome-error、
+ *           .text-status-error / .text-text-destructive。
+ *   #loading-container 由 omni-craft-boot.css 全权接管（html body #root #loading-container，
+ *   特异性 2,0,2 + 自带 omni-boot-rotate-center 旋转环）；本文件原先那套 ::after spinner
+ *   被完全压过、一帧都没画过，已删，避免两套启动动画打架。
+ *
+ * 工艺基线（index.html 内联 #omni-craft 令牌，实测为「空格分隔三元组」，可直接进 rgb()）：
+ *   表面  --surface-primary 12 14 19 / --surface-secondary 17 20 27 / --surface-tertiary 22 26 35
+ *   文字  --text-primary 233 237 245 / --text-secondary 170 179 197 / --text-tertiary 111 120 137
+ *   强调  --accent-primary 91 140 255   圆角 --radius 12px
+ *   刻度  --fs 11/12/13/14/16/20  --lh 16/20/22/24/28  --space 4/8/12/16/24/32
+ *         --dur 120/180/240/320ms   --ease cubic-bezier(0.22, 1, 0.36, 1)
+ *
+ * 特异性策略：状态类自身 (0,1,0)，统一以 html 前缀抬到 (0,1,1)，竞争属性加 !important。
+ * ========================================================================== */
+
+:root {
+  /* 工艺令牌 (全部复用 OmniShade 暗色变量，避免硬编码漂移) */
+  --omni-radius: var(--omni-radius-md, 12px);
+  --omni-accent: rgb(91, 140, 255);                 /* 与 --accent-primary 同值，仅供阴影/渐变用 */
+  --omni-accent-rgb: 91 140 255;      /* 空格分隔三元组，供 color/border/阴影做 alpha 合成 */
+  --omni-error: #e02f1f;                            /* status-error-strong 同值，柔和红 */
+  --omni-error-rgb: 224 47 31;        /* 空格三元组：仅用于底色/描边的 alpha 合成 */
+  --omni-error-text-rgb: 255 90 73;   /* 字色三元组：AA 5.97:1（原 224 47 31 仅 4.03:1） */
+  --omni-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* 空态插图（44px 图标位）：遮罩用的矢量字形，随主题色走，不引外部资源 */
+  --omni-glyph-chat: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z'/%3E%3Cpath d='M8 9h8M8 12.5h5'/%3E%3C/svg%3E");
+  --omni-glyph-search: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.6-3.6'/%3E%3C/svg%3E");
+  --omni-glyph-file: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z'/%3E%3Cpath d='M14 3v5h5'/%3E%3C/svg%3E");
+}
+
+/* ============================== 加载态 ============================== */
+
+/* 1) LibreChat SVG 旋转圈 .spinner —— 会话加载遮罩里的真 spinner（实测 1/1 命中可见）
+ *    SVG 用 currentColor，统一染强调色 + 柔光，保留线性匀速旋转 (匀速才顺) */
+html .spinner {
+  color: rgb(var(--accent-primary)) !important;
+  filter: drop-shadow(0 0 6px rgb(var(--omni-accent-rgb) / 0.5)) !important;
+  /* ⚠ omni-craft-system.css 的 *{animation-timing-function:var(--ease-out)!important}
+   *   会把旋转也抹成 ease-out（每圈先快后慢，看着一顿一顿）。旋转必须线性。 */
+  animation-timing-function: linear !important;
+  will-change: transform !important;
+}
+
+/* 2) Tailwind .animate-spin —— 通用加载图标（按钮里的 Loader2 等）。
+ *    本构建 9 个实测场景 0 命中，保留给出现即生效的弹窗/按钮态 */
+html .animate-spin {
+  color: rgb(var(--accent-primary)) !important;
+  animation-timing-function: linear !important;   /* 同上：旋转类不吃 craft 缓动 */
+  will-change: transform !important;
+}
+
+/* 3) 骨架屏文字微光 .shimmer —— 工具运行状态 / 计时用的文字骨架（实测 2/2 命中）
+ *    ⚠ 可读性：构建里 .shimmer 用 background-clip:text + text-fill-color:transparent，
+ *      屏幕上真正显示的是渐变本身，而不是 color。所以基色/暗谷两端都必须自己过 AA：
+ *        基色 111 155 255 on #11141b = 6.85:1
+ *        暗谷 126 138 164 on #11141b = 5.32:1（原 150 158 178@0.22 合成后只有 1.44:1，等于不可读） */
+html .shimmer {
+  --shimmer-base: 111 155 255;                  /* 空格分隔三元组：构建按 rgb(x y z / a) 解析 */
+  --shimmer-base-alpha: 1;
+  --shimmer-dip: 126 138 164;                   /* 石板灰暗谷，仍 ≥4.5:1 */
+  --shimmer-dip-alpha: 1;
+  animation-duration: 2.6s !important;          /* 4s → 2.6s，呼吸更活 */
+  animation-timing-function: linear !important; /* 扫光匀速，曲线只给位移类动效 */
+  text-shadow: 0 0 12px rgb(var(--omni-accent-rgb) / 0.15) !important;
+}
+
+/* 4) 骨架块微光扫光 —— 只挂 div。
+ *    构建里 .animate-pulse 还挂在工具状态的 <svg> 图标上，原版把图标也刷成渐变色块，
+ *    实测 S8 里 1/1 命中的就是 svg；收窄到 div 后图标走构建自带 pulse，块级才吃扫光。 */
+@keyframes omni-shimmer-block {
+  0%   { background-position: -120% 0; }
+  100% { background-position: 220% 0; }
+}
+html div.animate-pulse {
+  background: linear-gradient(
+      100deg,
+      rgb(var(--surface-secondary)) 35%,
+      rgb(var(--omni-accent-rgb) / 0.14) 50%,     /* 强调色高光扫过暗骨架 */
+      rgb(var(--surface-secondary)) 65%
+    ) !important;
+  background-size: 220% 100% !important;
+  /* [TOOLS-EXP 2026-11-07] 工单基线：骨架扫光 0.9s 循环 + ease-in-out（原 1.6s 主曲线）。
+   * 长手写必须重复声明，压过 system 层 *{animation-timing-function:var(--ease-out)}。 */
+  animation: omni-shimmer-block 0.9s ease-in-out infinite !important;
+  animation-timing-function: ease-in-out !important;
+}
+/* [TOOLS-EXP 2026-11-07] 多根骨架条错峰（2-3 根扫光条的呼吸节奏感）：
+ * 同级第 2/3 根延迟 0.15s / 0.3s，扫光波次依次推进。 */
+html div.animate-pulse:nth-child(2) {
+  animation-delay: 0.15s !important;
+}
+html div.animate-pulse:nth-child(3) {
+  animation-delay: 0.3s !important;
+}
+
+/* 5) 生成中“呼吸点” —— 兼容层：本构建（LibreChat v0.8.8-rc4 产物）没有
+ *    .submitting / .result-thinking 这两个类，实测 0 命中。上游版本恢复结构即生效。 */
+@keyframes omni-think-breathe {
+  0%, 100% { opacity: 1;   transform: scale(1); }
+  50%      { opacity: 0.32; transform: scale(0.82); }
+}
+@keyframes omni-fade-in {
+  from { opacity: 0; transform: scale(0.6); }
+  to   { opacity: 1; transform: scale(1); }
+}
+html .submitting .result-thinking:empty:last-child:after {
+  background-color: rgb(var(--accent-primary)) !important;
+  box-shadow: 0 0 10px -1px rgb(var(--omni-accent-rgb) / 0.6) !important;
+  animation:
+    0.25s var(--omni-ease) both omni-fade-in,
+    1.5s var(--omni-ease) 0.25s infinite omni-think-breathe !important;
+}
+
+/* 6) #loading-container —— 归 omni-craft-boot.css 管（实测 ::after 跑的是
+ *    omni-boot-rotate-center 1.4s，不是本文件的 librechat-spinner-rotate 0.9s）。
+ *    这里不再重复着色，避免两套启动动画叠在同一伪元素上互相覆盖。 */
+
+/* ============================== 空态 ============================== */
+
+/* 1) 侧栏空态：无会话 / 无搜索结果
+ *    真实锚点 = [data-testid="convo-list-empty"]（构建内唯一稳定锚点，class 串会随构建变）
+ *    原版挂 py-16 / min-h-40，构建里根本没有这两个类 → 空态裸奔（只有一行小灰字，无图标无说明）。
+ *    这里补齐三要素：44px 图标（遮罩字形，跟主题色走）+ 主文案（构建自带 span）+ 次级说明（::after 注入）。 */
+html [data-testid="convo-list-empty"] {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 12px !important;
+  padding: 24px !important;
+  text-align: center !important;
+  color: rgb(var(--text-secondary)) !important;
+}
+html [data-testid="convo-list-empty"]::before {
+  content: "" !important;
+  display: block !important;
+  width: 44px !important;
+  height: 44px !important;
+  flex: none !important;
+  background-color: rgb(var(--omni-accent-rgb) / 0.8) !important;   /* 图标对暗底 4.29:1 ≥3:1 */
+  -webkit-mask: var(--omni-empty-glyph, var(--omni-glyph-chat)) center / 24px 24px no-repeat !important;
+  mask: var(--omni-empty-glyph, var(--omni-glyph-chat)) center / 24px 24px no-repeat !important;
+}
+html [data-testid="convo-list-empty"] > span {
+  font-size: 13px !important;
+  line-height: 20px !important;
+  font-weight: 500 !important;
+  color: rgb(var(--text-primary)) !important;
+}
+/* 次级说明：构建内没有这一层字段，CSS 层注入（文案固定中文，随产品 zh-CN 语言面） */
+html [data-testid="convo-list-empty"]::after {
+  content: "开始一个新对话，历史会显示在这里" !important;
+  display: block !important;
+  font-size: 12px !important;
+  line-height: 16px !important;
+  max-width: 20em !important;
+  color: rgb(var(--text-secondary)) !important;
+}
+/* 搜索态：同一个容器换文案 + 换图标（输入框有值时 :placeholder-shown 为 false） */
+html nav:has(input[data-testid="nav-search-input"]:not(:placeholder-shown)) [data-testid="convo-list-empty"] {
+  --omni-empty-glyph: var(--omni-glyph-search);
+}
+html nav:has(input[data-testid="nav-search-input"]:not(:placeholder-shown)) [data-testid="convo-list-empty"]::after {
+  content: "换个关键词试试，或清空搜索" !important;
+}
+
+/* 2) 面板空态卡：提示词 / 记忆 / 书签（实测三处同构，281×136 上下，图标+标题+说明俱全）
+ *    真实锚点 = div.rounded-lg.border.border-border-light.p-6.text-center:has(> div.size-10)
+ *    原版按 min-h-40 / py-16 挂，0 命中 → 这张卡一直是构建原样（直角边框、灰图标、2px 缝） */
+html div.rounded-lg.border.border-border-light.p-6.text-center:has(> div.size-10) {
+  border-color: var(--border-medium) !important;   /* 该令牌是 rgba() 整值，不能套 rgb()（套了整条声明被丢弃，边框会回退到 currentColor 的亮白） */
+  border-radius: var(--omni-radius) !important;
+  padding: 24px !important;
+  background: rgb(var(--surface-secondary)) !important;
+}
+html div.rounded-lg.border.border-border-light.p-6.text-center:has(> div.size-10) > div.size-10 {
+  width: 44px !important;
+  height: 44px !important;
+  margin-bottom: 12px !important;
+  background: rgb(var(--omni-accent-rgb) / 0.12) !important;
+  border: 1px solid rgb(var(--omni-accent-rgb) / 0.22) !important;
+  border-radius: 9999px !important;
+}
+html div.rounded-lg.border.border-border-light.p-6.text-center:has(> div.size-10) > div.size-10 svg {
+  color: rgb(var(--accent-primary)) !important;      /* 图标本身带 text-text-secondary，必须直挂 svg */
+}
+html div.rounded-lg.border.border-border-light.p-6.text-center:has(> div.size-10) > p:first-of-type {
+  font-size: 14px !important;
+  line-height: 22px !important;
+  font-weight: 600 !important;
+  color: rgb(var(--text-primary)) !important;
+}
+html div.rounded-lg.border.border-border-light.p-6.text-center:has(> div.size-10) > p + p {
+  margin-top: 4px !important;                        /* 原 mt-0.5 = 2px，越界档 → 4 */
+  font-size: 12px !important;
+  line-height: 16px !important;
+  color: rgb(var(--text-secondary)) !important;
+}
+
+/* 3) 文件管理空表行：<td class="p-4 h-24 text-center">无结果。</td>
+ *    原版没有对应锚点（它挂 border-dashed，文件弹窗里没有任何虚线元素）→ 只有一行 13px 灰字。 */
+html table td.h-24.text-center {
+  padding: 24px 16px !important;
+  font-size: 13px !important;
+  line-height: 20px !important;
+  color: rgb(var(--text-secondary)) !important;
+}
+html table td.h-24.text-center::before {
+  content: "" !important;
+  display: block !important;
+  width: 32px !important;
+  height: 32px !important;
+  margin: 0 auto 8px !important;
+  background-color: rgb(var(--omni-accent-rgb) / 0.8) !important;
+  -webkit-mask: var(--omni-glyph-file) center / 24px 24px no-repeat !important;
+  mask: var(--omni-glyph-file) center / 24px 24px no-repeat !important;
+}
+
+/* 4) 兼容层：min-h-40 / py-16 是别的页面（Projects / Insights 产物）在用的容器类，
+ *    本构建 9 个实测场景 0 命中，保留但不作为主锚点，避免误伤那些页面的留白。 */
+html :is([class*="min-h-40"]) {
+  gap: 12px !important;
+  color: rgb(var(--text-secondary)) !important;
+}
+html :is([class*="py-16"]) {
+  gap: 24px !important;        /* [AUDIT-FIX] 20px 破格 → 24（--space-5） */
+  padding-top: 48px !important;    /* [AUDIT-FIX] 80px 越出 48 封顶档 */
+  padding-bottom: 48px !important;
+}
+
+/* ============================== 错误态 ============================== */
+
+/* 1) 错误语义表面 —— 实测命中（错误卡 div.rounded-xl.border.border-status-error-border.bg-status-error-subtle） */
+html :is([class*="bg-status-error-subtle"]) {
+  background-color: rgb(var(--omni-error-rgb) / 0.1) !important;
+  border-radius: var(--omni-radius) !important;
+}
+html :is([class*="border-status-error-border"]) {
+  border-color: rgb(var(--omni-error-rgb) / 0.4) !important;
+}
+
+/* 2) 错误页正文：构建用 leading-relaxed（1.625 倍）→ 实测 22.75px / 19.5px 两处越界，
+ *    按字号对回 --lh 阶梯：14px→24、12px→20。锚在错误页根（div.min-h-screen）。 */
+html div[class*="min-h-screen"] pre,
+html [class*="bg-status-error-subtle"] pre {
+  font-size: 14px !important;
+  line-height: 24px !important;
+}
+html div[class*="min-h-screen"] pre.text-xs {
+  font-size: 12px !important;
+  line-height: 20px !important;
+}
+
+/* 3) 错误页标题：text-3xl = 30px / 36px 越界（刻度到 20），归 --fs-6/--lh-6 */
+html div[class*="min-h-screen"] h2 {
+  font-size: 20px !important;
+  line-height: 28px !important;
+}
+
+/* 4) 错误页主按钮：白字 on #5b8cff 实测 3.16:1（AA 要 4.5）→ 改深字，同 G46 登录 CTA 口径 6.10:1 */
+html div[class*="min-h-screen"] :is(button, a)[class*="bg-surface-submit"],
+html div[class*="min-h-screen"] :is(button, a)[class*="bg-accent-primary"] {
+  color: rgb(var(--surface-primary)) !important;
+}
+
+/* 5) 兼容层：.omni-chrome-error 是本仓自造的类，本构建产物里不存在（0 命中）；
+ *    上游若恢复了 .omni-chrome-error 错误条，下面这套“淡红底 + 左侧红条 + 轻入”即刻生效。
+ * [TOOLS-EXP 2026-11-07 勘误] 复扫 index.Bx_aOP0E.js：该类其实存在 ——
+ *    role=alert 的 div.omni-chrome-error（文案 com_ui_omni_open_failed，OmniShade
+ *    chrome 打开失败时挂载）。本段非死锚，是活锚；上面这套横幅即真实生效中。 */
+html .omni-chrome-error {
+  border: 1px solid rgb(var(--omni-error-rgb) / 0.35) !important;
+  border-left: 3px solid var(--omni-error) !important;
+  border-radius: var(--omni-radius) !important;
+  background: rgb(var(--omni-error-rgb) / 0.08) !important;
+  color: rgb(var(--omni-error-text-rgb)) !important;
+  padding: 8px 16px !important;
+  box-shadow: 0 8px 24px -12px rgb(var(--omni-error-rgb) / 0.5) !important;
+  backdrop-filter: none !important;
+  animation: omni-error-in 250ms var(--omni-ease) both !important;  /* [AUDIT-FIX] 320ms → 250 面板档 */
+}
+@keyframes omni-error-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================== 动效降级 ============================== */
+@media (prefers-reduced-motion: reduce) {
+  html div.animate-pulse,
+  html .submitting .result-thinking:empty:last-child:after,
+  html .omni-chrome-error,
+  html .shimmer {
+    animation: none !important;
+  }
+  html div.animate-pulse {
+    background: rgb(var(--surface-tertiary)) !important;   /* 降级为静态骨架色 */
+  }
+  html .shimmer {
+    -webkit-text-fill-color: rgb(var(--text-secondary)) !important;  /* 关掉扫光后必须回到可读实色 */
+    background: none !important;
+  }
+}
+
+/* ============================================================================
+ * [TOOLS-EXP 2026-11-07] 状态反馈增强（第二轮）
+ * ----------------------------------------------------------------------------
+ * DOM 证据（当前构建逐字核对）：
+ *   · Toast 视口（真机挂载，index 根 JSX 末位）：
+ *       ol.pointer-events-none.fixed.inset-x-0.top-0.z-[1000].mx-auto.my-2
+ *          .flex.max-w-[560px].flex-col.items-stretch.justify-start
+ *       子项为 radix Toast 的 li[data-state="open|closed"]，状态语义
+ *       success / error / warning / info 由应用层传入（本层用 :has() 探子
+ *       节点 text-status-* 类上色，探不到时默认 accent 信息档）。
+ *   · 错误横幅真锚：div.rounded-xl.border.border-status-error-border
+ *       .bg-status-error-subtle.p-4.text-sm.text-text-secondary（含 h3 标题）；
+ *       状态徽章 span.rounded-full 也有同两族类 —— 用 :not([class*="rounded-full"])
+ *       排除徽章，只给横幅加左色条。
+ *   · 空态容器 [data-testid="convo-list-empty"]（主文案 span + ::after 注入说明）。
+ *   · 生成游标 live 锚：div[data-testid="activity-phase-cursor"] 内
+ *       span.submitting > span.result-thinking（上一版 :empty:last-child 锚已死，
+ *       保留兼容层，本层补 live 锚）。
+ * ⚠ Toast 位移：构建视口在顶部居中，工单要求右下角进出 —— 本层用 !important
+ *   重定位视口 + li 进出动效；li 内部结构由应用渲染，壳样式一律最小侵入。
+ * ========================================================================== */
+
+/* ---------- 12. [TOOLS-EXP 2026-11-07] 状态令牌补充（空格三元组） ---------- */
+:root {
+  --omni-success: #37d67a;              /* 成功绿（工单基线） */
+  --omni-success-rgb: 55 214 122;
+  --omni-warn: #ffc266;                /* 警示（工单基线） */
+  --omni-warn-rgb: 255 194 102;
+  --omni-error-line-rgb: 255 122 122;  /* 错误横幅面色：暗底 6.0:1，比 224 47 31 稳 */
+  --omni-toast-dur: 250ms;             /* toast 进出（工单要求） */
+  /* 空态直铺字形（§15 用）：描边即 accent，不经 mask，border 得以完整显示 */
+  --omni-glyph-chat-line: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b8cff' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z'/%3E%3Cpath d='M8 9h8M8 12.5h5'/%3E%3C/svg%3E");
+  --omni-glyph-search-line: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b8cff' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.6-3.6'/%3E%3C/svg%3E");
+}
+
+/* ---------- 13. [TOOLS-EXP 2026-11-07] Toast：右下角 + 250ms 进出 + 三色档 ----------
+ * 视口重定位：顶部居中 → 右下角（inset-x-0 / mx-auto / top-0 全部被覆盖）。 */
+html ol[class*="pointer-events-none"][class*="z-[1000]"][class*="fixed"] {
+  top: auto !important;
+  bottom: 20px !important;
+  left: auto !important;
+  right: 24px !important;
+  margin: 0 !important;
+  max-width: 360px !important;
+  min-width: 240px !important;
+}
+/* li 壳：暗面卡片 + 左侧 3px 色条（默认 accent = 信息档） */
+html ol[class*="pointer-events-none"][class*="z-[1000]"][class*="fixed"] > li[data-state] {
+  border-radius: var(--omni-radius) !important;
+  border: 1px solid var(--border-medium) !important;
+  border-left: 3px solid rgb(var(--omni-accent-rgb)) !important;
+  background-color: rgb(var(--surface-secondary)) !important;
+  box-shadow:
+    0 6px 18px -8px rgba(0, 0, 0, 0.55),
+    0 2px 6px rgba(0, 0, 0, 0.3) !important;
+}
+/* 色档：探子节点语义类（成功 / 错误 / 警示），探不到保持 accent 信息档 */
+html ol[class*="pointer-events-none"][class*="z-[1000]"][class*="fixed"]
+  > li[data-state]:has([class*="text-status-success"]) {
+  border-left-color: var(--omni-success) !important;
+}
+html ol[class*="pointer-events-none"][class*="z-[1000]"][class*="fixed"]
+  > li[data-state]:has([class*="text-status-error"]) {
+  border-left-color: rgb(var(--omni-error-line-rgb)) !important;
+}
+html ol[class*="pointer-events-none"][class*="z-[1000]"][class*="fixed"]
+  > li[data-state]:has([class*="text-status-warning"]) {
+  border-left-color: rgb(var(--omni-warn-rgb)) !important;
+}
+/* 进出：translateY + opacity，250ms（open 升起 / closed 沉降消隐） */
+@keyframes omni-toast-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes omni-toast-out {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(8px); }
+}
+html ol[class*="pointer-events-none"][class*="z-[1000]"][class*="fixed"]
+  > li[data-state="open"] {
+  animation: omni-toast-in var(--omni-toast-dur) ease-in-out both !important;
+  animation-timing-function: ease-in-out !important;   /* 压过 system 层全局 ease-out */
+}
+html ol[class*="pointer-events-none"][class*="z-[1000]"][class*="fixed"]
+  > li[data-state="closed"] {
+  animation: omni-toast-out var(--omni-toast-dur) ease-in-out both !important;
+  animation-timing-function: ease-in-out !important;
+}
+
+/* ---------- 14. [TOOLS-EXP 2026-11-07] 错误横幅统一呈现 ----------
+ * API 错 / 网络错 / 配额满共用 status-error 两族类。锚定「两族类同挂」才能进
+ * 横幅档（diff 删除行只挂 bg-status-error-subtle 一族 —— 必须排除，否则
+ * 代码 diff 的每一行删除都会吃左色条 + 入场动画）；:not([class*="rounded-full"])
+ * 再排掉状态徽章（徽章两族同挂但是小圆角 chip）。 */
+html [class*="bg-status-error-subtle"][class*="border-status-error-border"]:not([class*="rounded-full"]) {
+  border-left: 3px solid rgb(var(--omni-error-line-rgb)) !important;
+  box-shadow: 0 6px 20px -12px rgb(var(--omni-error-line-rgb) / 0.45) !important;
+  animation: omni-error-in var(--dur-4, 320ms) var(--omni-ease) both !important;
+}
+/* 详情（pre）可展开：限高 + 内部滚动 + 底部渐隐（标题常驻、详情收进滚动区） */
+html [class*="bg-status-error-subtle"][class*="border-status-error-border"]:not([class*="rounded-full"]) pre {
+  max-height: 160px !important;
+  overflow: auto !important;
+  background-color: rgb(var(--surface-tertiary)) !important;
+  border-radius: var(--omni-radius) !important;
+  padding: 8px 12px !important;
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 calc(100% - 20px),
+    transparent 100%
+  ) !important;
+  mask-image: linear-gradient(
+    to bottom,
+    #000 calc(100% - 20px),
+    transparent 100%
+  ) !important;
+}
+
+/* ---------- 15. [TOOLS-EXP 2026-11-07] 空态升级：虚线圆环 + accent 行动字样 ----------
+ * 在 G74 空态三要素之上：::before 从「mask 造型色块」升级为「虚线圆环 + 环心字形」。
+ * ⚠ 实现细节：mask 会连 border 一起裁掉（虚线环会只剩字形重叠处），所以字形改用
+ *   accent 描边的 SVG 直铺 background-image（不再走 mask），border 因此完整可见。
+ * 主文案（构建自带 span）染 accent 作行动字样。纯 CSS，无位图。 */
+html [data-testid="convo-list-empty"]::before {
+  width: 56px !important;
+  height: 56px !important;
+  background-color: rgb(var(--omni-accent-rgb) / 0.06) !important;
+  background-image: var(--omni-empty-glyph-line, var(--omni-glyph-chat-line)) !important;
+  background-position: center !important;
+  background-size: 22px 22px !important;
+  background-repeat: no-repeat !important;
+  border: 1.5px dashed rgb(var(--omni-accent-rgb) / 0.45) !important;
+  border-radius: 50% !important;
+  /* 显式清掉 G74 层的 mask（不清会把虚线环一起裁掉，只环心字形处残影） */
+  -webkit-mask: none !important;
+  mask: none !important;
+  animation: omni-ring-breathe 3s ease-in-out infinite !important;
+  animation-timing-function: ease-in-out !important;
+}
+@keyframes omni-ring-breathe {
+  0%, 100% { border-color: rgb(var(--omni-accent-rgb) / 0.45); }
+  50%      { border-color: rgb(var(--omni-accent-rgb) / 0.85); }
+}
+/* 搜索态：同容器换 search 字形（与 G74 的 --omni-empty-glyph 变量并列成对） */
+html nav:has(input[data-testid="nav-search-input"]:not(:placeholder-shown)) [data-testid="convo-list-empty"] {
+  --omni-empty-glyph-line: var(--omni-glyph-search-line);
+}
+/* 主文案 → accent 行动字样（视觉锚点，实际新建入口在工具栏按钮，不动 DOM） */
+html [data-testid="convo-list-empty"] > span {
+  color: color-mix(in srgb, rgb(var(--accent-primary)) 88%, white) !important;
+  font-weight: 600 !important;
+}
+
+/* ---------- 16. [TOOLS-EXP 2026-11-07] 生成游标 live 锚（呼吸点） ----------
+ * 上一版 .submitting .result-thinking:empty:last-child 锚在本构建 0 命中
+ * （兼容层保留）；真锚是 cursor 内的 span.submitting > span.result-thinking
+ * （block + after:!static），本层按真锚重挂呼吸点。 */
+@keyframes omni-think-dot {
+  0%, 100% { opacity: 1;   box-shadow: 0 0 0 0 rgb(var(--omni-accent-rgb) / 0.45); }
+  50%      { opacity: 0.45; box-shadow: 0 0 8px 3px rgb(var(--omni-accent-rgb) / 0.25); }
+}
+html [data-testid="activity-phase-cursor"] .submitting .result-thinking {
+  width: 10px !important;
+  height: 10px !important;
+  border-radius: 9999px !important;
+  background: radial-gradient(
+    circle,
+    rgb(var(--omni-accent-rgb)) 0 55%,
+    transparent 62% 100%
+  ) !important;
+  animation: omni-think-dot 1.5s ease-in-out infinite !important;
+  animation-timing-function: ease-in-out !important;
+}
+
+/* ---------- 17. [TOOLS-EXP 2026-11-07] 动效降级（本轮新增块） ---------- */
+@media (prefers-reduced-motion: reduce) {
+  html ol[class*="pointer-events-none"][class*="z-[1000]"][class*="fixed"] > li[data-state],
+  html [data-testid="convo-list-empty"]::before,
+  html [data-testid="activity-phase-cursor"] .submitting .result-thinking {
+    animation: none !important;
+  }
+  html [data-testid="activity-phase-cursor"] .submitting .result-thinking {
+    background: rgb(var(--accent-primary)) !important;   /* 降级为静态可读点 */
+  }
+}

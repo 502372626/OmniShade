@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8" />
+    <base href="/" />
+    <meta name="theme-color" content="#171717" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta
+      name="description"
+      content="LibreChat - An open source chat application with support for multiple AI models"
+    />
+    <title>LibreChat</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16x16.png" />
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon-180x180.png" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, interactive-widget=resizes-content"
+    />
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+      }
+    </style>
+    <script>
+      const theme = localStorage.getItem('color-theme');
+      const loadingContainerStyle = document.createElement('style');
+      let backgroundColor;
+
+      if (theme === 'high-contrast-dark') {
+        backgroundColor = '#000000';
+      } else if (theme === 'high-contrast-light') {
+        backgroundColor = '#ffffff';
+      } else if (theme === 'dark') {
+        backgroundColor = '#0d0d0d';
+      } else if (theme === 'light') {
+        backgroundColor = '#ffffff';
+      } else {
+        /* `system`, and anything unset or unrecognised, which ThemeProvider also
+         * resolves as `system`. The OS decides the scheme and the contrast, and
+         * a contrast request moves the dark canvas to pure black, so keying off
+         * the scheme alone would flash #0d0d0d behind the black palette.
+         * The three contrast queries mirror ThemeProvider's `CONTRAST_QUERIES`:
+         * a Windows Contrast Theme reports `forced-colors: active` with
+         * `prefers-contrast: custom`, never `more`. */
+        const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const prefersMoreContrast = [
+          '(prefers-contrast: more)',
+          '(prefers-contrast: custom)',
+          '(forced-colors: active)',
+        ].some(function (query) {
+          return window.matchMedia(query).matches;
+        });
+        backgroundColor = prefersDarkScheme
+          ? prefersMoreContrast
+            ? '#000000'
+            : '#0d0d0d'
+          : '#ffffff';
+      }
+
+      loadingContainerStyle.innerHTML = `
+        #loading-container {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          height: 100vh;
+          background-color: ${backgroundColor};
+        }
+      `;
+      document.head.appendChild(loadingContainerStyle);
+    </script>
+    <script>
+      (function () {
+        var KEY = 'lc-asset-recovery-at';
+        var RUM_QUEUE_KEY = 'lc-rum-queue';
+        var MAX_RUM_QUEUE = 20;
+        window.__lcRumRecoveryGuardInstalled = true;
+        window.__lcRumQueue = Array.isArray(window.__lcRumQueue) ? window.__lcRumQueue : [];
+        try {
+          var persistedQueue = JSON.parse(sessionStorage.getItem(RUM_QUEUE_KEY) || '[]');
+          if (Array.isArray(persistedQueue)) {
+            window.__lcRumQueue = persistedQueue.concat(window.__lcRumQueue).slice(-MAX_RUM_QUEUE);
+          }
+        } catch (e) {
+          /* Diagnostics should never affect application startup. */
+        }
+        window.__lcRumPush = function (type, attributes) {
+          try {
+            var safeAttributes = {};
+            Object.keys(attributes || {}).forEach(function (key) {
+              var value = attributes[key];
+              if (
+                typeof value !== 'string' &&
+                typeof value !== 'number' &&
+                typeof value !== 'boolean'
+              ) {
+                return;
+              }
+              safeAttributes[key] = value;
+            });
+            /* Stamp before persistence: a recovery reload may precede the RUM module. */
+            safeAttributes.clientBuildId = 'unknown';
+            var entryScripts = document.querySelectorAll('script[type="module"][src]');
+            for (var i = 0; i < entryScripts.length; i++) {
+              var filename = entryScripts[i]
+                .getAttribute('src')
+                .split(/[?#]/, 1)[0]
+                .split('/')
+                .pop();
+              if (/^index[.-][\w-]+\.js$/.test(filename)) {
+                safeAttributes.clientBuildId = filename;
+                break;
+              }
+            }
+            if (window.__lcRumQueue.length >= MAX_RUM_QUEUE) {
+              window.__lcRumQueue.shift();
+            }
+            window.__lcRumQueue.push({
+              type: type,
+              at: Math.round(performance.now()),
+              visibilityState: document.visibilityState,
+              attributes: safeAttributes,
+            });
+            sessionStorage.setItem(RUM_QUEUE_KEY, JSON.stringify(window.__lcRumQueue));
+          } catch (e) {
+            /* Diagnostics should never affect application startup. */
+          }
+        };
+        function shouldRecover() {
+          try {
+            var last = Number(sessionStorage.getItem(KEY)) || 0;
+            if (Date.now() - last < 60000) {
+              return false;
+            }
+            sessionStorage.setItem(KEY, String(Date.now()));
+            return true;
+          } catch (e) {
+            return false;
+          }
+        }
+        window.__lcRecoverStaleAssets = function () {
+          if (!shouldRecover()) {
+            return false;
+          }
+          window.__lcRumPush('stale-asset-recovery-start');
+          var reload = function () {
+            window.__lcRumPush('stale-asset-recovery-reload');
+            window.location.reload();
+          };
+          if (navigator.serviceWorker) {
+            var scopeBase = new URL('./', document.baseURI || window.location.href).href;
+            navigator.serviceWorker
+              .getRegistrations()
+              .then(function (registrations) {
+                return Promise.all(
+                  registrations
+                    .filter(function (registration) {
+                      return registration.scope.indexOf(scopeBase) === 0;
+                    })
+                    .map(function (registration) {
+                      return registration.unregister();
+                    }),
+                );
+              })
+              .then(reload, reload);
+          } else {
+            reload();
+          }
+          return true;
+        };
+        if (navigator.serviceWorker) {
+          navigator.serviceWorker.addEventListener('message', function (event) {
+            if (!event.data || event.data.type !== 'LC_SW_PING') {
+              return;
+            }
+            var source = event.source || navigator.serviceWorker.controller;
+            if (source) {
+              source.postMessage({ type: 'LC_SW_PONG' });
+            }
+          });
+        }
+        window.addEventListener(
+          'error',
+          function (event) {
+            var el = event.target;
+            if (!el || !el.tagName) {
+              return;
+            }
+            var failedScript = el.tagName === 'SCRIPT' && el.src;
+            var failedPreload =
+              el.tagName === 'LINK' && /preload/.test(el.rel || '') && /\.js$/.test(el.href || '');
+            if (failedScript || failedPreload) {
+              var isRumBootstrap = el.getAttribute('data-lc-rum-bootstrap') === 'true';
+              window.__lcRumPush('asset-load-error', {
+                tagName: el.tagName,
+                assetUrl: el.src || el.href,
+                optional: isRumBootstrap,
+              });
+              if (isRumBootstrap) {
+                return;
+              }
+              window.__lcRecoverStaleAssets();
+            }
+          },
+          true,
+        );
+        window.addEventListener('unhandledrejection', function (event) {
+          var message = event.reason && event.reason.message;
+          if (
+            typeof message === 'string' &&
+            (message.indexOf('dynamically imported module') !== -1 ||
+              message.indexOf('Importing a module script failed') !== -1)
+          ) {
+            window.__lcRumPush('dynamic-import-error');
+            window.__lcRecoverStaleAssets();
+          }
+        });
+      })();
+    </script>
+    <script type="module" crossorigin src="./assets/index.Bx_aOP0E.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/rolldown-runtime.B0Z9INg1.js">
+    <link rel="modulepreload" crossorigin href="./assets/polyfills.CEDm44Cr.js">
+    <link rel="modulepreload" crossorigin href="./assets/advanced-inputs.0gHsBjsU.js">
+    <link rel="modulepreload" crossorigin href="./assets/i18n.CenFdT2j.js">
+    <link rel="modulepreload" crossorigin href="./assets/codemirror-core.r8uhyzQ3.js">
+    <link rel="modulepreload" crossorigin href="./assets/http-client.C5fr6Lnu.js">
+    <link rel="modulepreload" crossorigin href="./assets/mermaid.DR3Y61_6.js">
+    <link rel="modulepreload" crossorigin href="./assets/animations.CzrKbGWf.js">
+    <link rel="modulepreload" crossorigin href="./assets/radix-ui.BqLeJ6oI.js">
+    <link rel="modulepreload" crossorigin href="./assets/query-devtools.DIz6FZCX.js">
+    <link rel="modulepreload" crossorigin href="./assets/tanstack-vendor.C7oK5bXW.js">
+    <link rel="modulepreload" crossorigin href="./assets/validation.Bd3jvxDI.js">
+    <link rel="modulepreload" crossorigin href="./assets/avatars.DwBzmTCp.js">
+    <link rel="modulepreload" crossorigin href="./assets/framer-motion.6mTbS3M5.js">
+    <link rel="modulepreload" crossorigin href="./assets/headlessui.8omgZzEp.js">
+    <link rel="modulepreload" crossorigin href="./assets/react-vtree.B9cEODFP.js">
+    <link rel="modulepreload" crossorigin href="./assets/vendor.BtI69WEu.js">
+    <link rel="modulepreload" crossorigin href="./assets/react-interactions.BEfrmSAG.js">
+    <link rel="modulepreload" crossorigin href="./assets/routing.B1O2pwc0.js">
+    <link rel="modulepreload" crossorigin href="./assets/markdown-processing.CjMf2xPH.js">
+    <link rel="modulepreload" crossorigin href="./assets/date-utils.C_DbPEjY.js">
+    <link rel="modulepreload" crossorigin href="./assets/sandpack.Bwdrraxv.js">
+    <link rel="modulepreload" crossorigin href="./assets/utilities.HUTk6tC6.js">
+    <link rel="modulepreload" crossorigin href="./assets/forms.DQMwNapF.js">
+    <link rel="modulepreload" crossorigin href="./assets/math-katex.dI9Ti9PO.js">
+    <link rel="modulepreload" crossorigin href="./assets/virtualization.UOcS4TWY.js">
+    <link rel="modulepreload" crossorigin href="./assets/hooks.b0NSLXq6.js">
+    <link rel="modulepreload" crossorigin href="./assets/SetKeyDialog.127HdRQQ.js">
+    <link rel="modulepreload" crossorigin href="./assets/security-ui.B17a9jwF.js">
+    <link rel="modulepreload" crossorigin href="./assets/ProjectEditDialog.BpNk-IyK.js">
+    <link rel="modulepreload" crossorigin href="./assets/forms.CsFwCv_b.js">
+    <link rel="modulepreload" crossorigin href="./assets/MyFilesModal.fho9V4S1.js">
+    <link rel="modulepreload" crossorigin href="./assets/queries.__r4IfLT.js">
+    <link rel="modulepreload" crossorigin href="./assets/markdown.DHBS6e1b.js">
+    <link rel="modulepreload" crossorigin href="./assets/eventSelection.C5khQv0u.js">
+    <link rel="stylesheet" crossorigin href="./assets/vendor.BJRvvXDx.css">
+    <link rel="stylesheet" crossorigin href="./assets/math-katex.uZ8_QngQ.css">
+    <link rel="stylesheet" crossorigin href="./assets/index.BhxCj7cH.css">
+  <link rel="manifest" href="./manifest.webmanifest" crossorigin="use-credentials"><script id="vite-plugin-pwa:register-sw" src="./registerSW.js"></script>  <!-- ===== OmniShade omni-craft 工艺注入(批1/批2 原格式, 来自 omni-craft-evidence.html 同款) ===== -->
+  <script>document.documentElement.classList.add('omni-desktop-chrome');</script>
+  <style id="omni-craft">
+:root{
+  --surface-primary:12 14 19!important;
+  --surface-secondary:17 20 27!important;
+  --surface-tertiary:22 26 35!important;
+  --surface-chat:10 12 16!important;
+  --surface-hover:26 31 43!important;
+  --surface-active:30 36 51!important;
+  --surface-overlay:rgba(18,22,30,.88)!important;
+  --surface-dialog:19 22 30!important;
+  --surface-fixed:14 17 24!important;
+  --surface-code:11 13 18!important;
+  --surface-composer-hover:26 31 43!important;
+  --surface-submit:91 140 255!important;
+  --surface-submit-hover:111 155 255!important;
+  --surface-inverted:233 237 245!important;
+  --text-primary:233 237 245!important;
+  --text-secondary:170 179 197!important;
+  --text-tertiary:111 120 137!important;
+  --text-muted:134 143 163!important;              /* 原 #59617a：对 --surface-active(#1e2433) 仅 2.52:1，正文 AA 不达标；
+                                                  #868fa3 对同一底色 4.77:1 ≥ 4.5 达标（详见 G3-修复复测.md） */
+  --border-light:rgba(255,255,255,.06)!important;
+  --border-medium:rgba(255,255,255,.10)!important;
+  --border-heavy:rgba(255,255,255,.16)!important;
+  --border-xheavy:rgba(255,255,255,.22)!important;
+  --accent-primary:91 140 255!important;
+  --accent-primary-hover:111 155 255!important;
+  --radius:12px!important;
+}
+*{box-sizing:border-box;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+/* 兜底文字色: 任何一个没显式 color 的节点都继承到浅色, 不会出现「黑字 + 黑底」不可读 */
+html,body{background:#080a0e!important;color:rgb(var(--text-primary))!important;font-family:"Inter","Microsoft YaHei",system-ui,-apple-system,"Segoe UI",sans-serif!important}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(120,135,170,.28);border-radius:8px;border:2px solid transparent;background-clip:padding-box}
+::-webkit-scrollbar-thumb:hover{background:rgba(120,135,170,.45);background-clip:padding-box}
+::selection{background:rgba(91,140,255,.32);color:#fff}
+textarea:focus,input:focus,div[contenteditable]:focus{outline:none!important;box-shadow:0 0 0 1px rgba(91,140,255,.4),0 0 18px -6px rgba(91,140,255,.5)!important}
+  </style>
+  <link rel="stylesheet" href="./omni-craft-sidebar.css" />
+  <link rel="stylesheet" href="./omni-craft-settings.css" />
+  <link rel="stylesheet" href="./omni-craft-chat.css" />
+  <link rel="stylesheet" href="./omni-craft-kb.css" />
+  <link rel="stylesheet" href="./omni-craft-tools.css" />
+  <link rel="stylesheet" href="./omni-craft-states.css" />
+  <link rel="stylesheet" href="./omni-craft-boot.css" />
+  <link rel="stylesheet" href="./omni-craft-system.css" />
+  <link rel="stylesheet" href="./omni-craft-license.css" />
+  <link rel="stylesheet" href="./omni-craft-composer.css" />
+</head>
+  <body>
+    <div id="root">
+      <div id="loading-container"></div>
+    </div>
+    <link rel="stylesheet" href="./omni-motion.css" />
+    <script src="./omni-license-panel.js" defer></script>
+    <script src="./omni-composer-ux.js" defer></script>
+  </body>
+</html>

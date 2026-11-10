@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en-US" class="dark" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content" />
+<title>OmniShade UI Craft Evidence — LibreChat × omni-craft</title>
+
+<!-- ============================================================
+     REAL default theme: the genuine LibreChat compiled CSS from this
+     build (NOT the stale hash index.html points at). Plus vendor CSS.
+     ============================================================ -->
+<link rel="stylesheet" href="./assets/index.CVpla9dX.css" />
+<link rel="stylesheet" href="./assets/vendor.BJRvvXDx.css" />
+
+<!-- ============================================================
+     omni-craft token override (verbatim from index.html <style id=omni-craft>)
+     + the 8 omni-craft craft layers. All marked .craft-only so the
+     default view ( ?craft=0 ) can strip them and show raw LibreChat.
+     ============================================================ -->
+<style id="omni-craft" class="craft-only">
+:root{
+  --surface-primary:12 14 19!important;
+  --surface-secondary:17 20 27!important;
+  --surface-tertiary:22 26 35!important;
+  --surface-chat:10 12 16!important;
+  --surface-hover:26 31 43!important;
+  --surface-active:30 36 51!important;
+  --surface-overlay:rgba(18,22,30,.88)!important;
+  --surface-dialog:19 22 30!important;
+  --surface-fixed:14 17 24!important;
+  --surface-code:11 13 18!important;
+  --surface-composer-hover:26 31 43!important;
+  --surface-submit:91 140 255!important;
+  --surface-submit-hover:111 155 255!important;
+  --surface-inverted:233 237 245!important;
+  --text-primary:233 237 245!important;
+  --text-secondary:170 179 197!important;
+  --text-tertiary:111 120 137!important;
+  --text-muted:89 97 122!important;
+  --border-light:rgba(255,255,255,.06)!important;
+  --border-medium:rgba(255,255,255,.10)!important;
+  --border-heavy:rgba(255,255,255,.16)!important;
+  --border-xheavy:rgba(255,255,255,.22)!important;
+  --accent-primary:91 140 255!important;
+  --accent-primary-hover:111 155 255!important;
+  --radius:12px!important;
+}
+*{box-sizing:border-box;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+html,body{background:#080a0e!important;font-family:"Inter","Microsoft YaHei",system-ui,-apple-system,"Segoe UI",sans-serif!important}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(120,135,170,.28);border-radius:8px;border:2px solid transparent;background-clip:padding-box}
+::-webkit-scrollbar-thumb:hover{background:rgba(120,135,170,.45);background-clip:padding-box}
+::selection{background:rgba(91,140,255,.32);color:#fff}
+textarea:focus,input:focus,div[contenteditable]:focus{outline:none!important;box-shadow:0 0 0 1px rgba(91,140,255,.4),0 0 18px -6px rgba(91,140,255,.5)!important}
+</style>
+
+<link rel="stylesheet" href="./omni-craft-sidebar.css" class="craft-only" />
+<link rel="stylesheet" href="./omni-craft-settings.css" class="craft-only" />
+<link rel="stylesheet" href="./omni-craft-chat.css" class="craft-only" />
+<link rel="stylesheet" href="./omni-craft-kb.css" class="craft-only" />
+<link rel="stylesheet" href="./omni-craft-tools.css" class="craft-only" />
+<link rel="stylesheet" href="./omni-craft-states.css" class="craft-only" />
+<link rel="stylesheet" href="./omni-craft-boot.css" class="craft-only" />
+<link rel="stylesheet" href="./omni-craft-system.css" class="craft-only" />
+
+<!-- prototype-only neutral layout helpers (colors/radius come from the CSS layers above) -->
+<style>
+  body{margin:0}
+  .proto-page{padding:0;min-height:100vh}
+  .proto-frame{display:flex;min-height:100vh}
+  .proto-main{flex:1;min-width:0}
+  .proto-tag{font:600 11px/1 "Inter",sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--text-tertiary,#6f7889);padding:10px 16px}
+  .proto-card{background:var(--surface-primary,#0c0e13);border:1px solid var(--border-light,rgba(255,255,255,.06));border-radius:12px}
+  .mock-input{width:100%;background:var(--surface-tertiary,#161a23);border:1px solid var(--border-light,rgba(255,255,255,.06));border-radius:10px;color:var(--text-primary,#e9edf5);padding:9px 12px;font-size:13px}
+  .mock-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--surface-submit,#5b8cff);color:#fff;border:0;border-radius:10px;font-weight:600;font-size:13px;padding:9px 16px;cursor:pointer}
+  .mock-btn.ghost{background:var(--surface-tertiary,#161a23);color:var(--text-primary,#e9edf5)}
+</style>
+
+<script>
+  // Approach toggle: ?craft=0 strips the omni-craft layers -> raw LibreChat default.
+  (function(){
+    var craft = new URLSearchParams(location.search).get('craft') !== '0';
+    if(!craft){
+      document.querySelectorAll('.craft-only').forEach(function(e){ e.remove(); });
+    }
+    window.__OMNI_CRAFT__ = craft;
+  })();
+</script>
+<style id="proto-explicit-colors">
+  html,body{background:rgb(var(--surface-chat,10 12 16))!important;color:rgb(var(--text-primary,233 237 245))!important}
+  .proto-page{background:rgb(var(--surface-chat,10 12 16))!important;color:rgb(var(--text-primary,233 237 245))!important}
+  .proto-card,table,thead,tbody,tr,td,th{background:rgb(var(--surface-tertiary,22 26 35))!important;color:rgb(var(--text-primary,233 237 245))!important}
+  th{color:rgb(var(--text-secondary,170 179 197))!important}
+</style>
+</head>
+<body>
+
+<!-- ============================ PAGE: SIDEBAR ============================ -->
+<section class="proto-page" id="page-sidebar">
+  <div class="proto-frame">
+    <!-- sidebar root: MUST carry both "transition-width" and "bg-surface-secondary" -->
+    <aside class="transition-width bg-surface-secondary flex flex-col h-screen w-72 p-2" style="border-right:1px solid var(--border-light,rgba(255,255,255,.06))">
+      <!-- boot loader demo (omni-craft-boot.css hooks: loading/spinner/wordmark) -->
+      <div class="flex items-center gap-2 px-2 py-2 mb-2">
+        <div class="h-6 w-6 rounded-md bg-surface-submit animate-spin loading-spinner"></div>
+        <span class="text-base font-semibold text-text-primary wordmark">OmniShade</span>
+        <span class="text-xs text-text-tertiary loading-hint">connecting…</span>
+      </div>
+
+      <!-- nav button (bg-presentation) -->
+      <button class="bg-presentation flex items-center gap-2 w-full text-text-primary font-medium rounded-xl px-3 py-2 mb-3">
+        <span class="text-lg">+</span> New Chat
+      </button>
+
+      <!-- section title -->
+      <div class="text-xs font-medium text-text-secondary px-2 py-1" style="letter-spacing:.06em">Conversations</div>
+
+      <!-- list items (flex w-full cursor-pointer); one active -->
+      <div class="flex w-full cursor-pointer items-center gap-3 px-3 py-2 rounded-xl" data-active-item="true">
+        <span class="size-2.5 rounded-full bg-surface-submit"></span>
+        <div class="min-w-0 flex-1">
+          <div class="font-medium text-text-primary truncate">OmniShade 部署排期</div>
+          <div class="text-xs text-text-tertiary">2 小时前</div>
+        </div>
+      </div>
+      <div class="flex w-full cursor-pointer items-center gap-3 px-3 py-2 rounded-xl">
+        <span class="size-2.5 rounded-full bg-surface-tertiary"></span>
+        <div class="min-w-0 flex-1">
+          <div class="font-medium text-text-primary truncate">逆向分析笔记整理</div>
+          <div class="text-xs text-text-tertiary">昨天</div>
+        </div>
+      </div>
+      <div class="flex w-full cursor-pointer items-center gap-3 px-3 py-2 rounded-xl">
+        <span class="size-2.5 rounded-full bg-surface-tertiary"></span>
+        <div class="min-w-0 flex-1">
+          <div class="font-medium text-text-primary truncate">KB 知识库导入方案</div>
+          <div class="text-xs text-text-tertiary">3 天前</div>
+        </div>
+      </div>
+
+      <div class="border-t border-border-light my-2"></div>
+      <div class="text-xs font-medium text-text-secondary px-2 py-1" style="letter-spacing:.06em">Projects</div>
+      <div class="flex w-full cursor-pointer items-center gap-3 px-3 py-2 rounded-xl">
+        <span class="text-sm">📁</span>
+        <div class="font-medium text-text-primary truncate">老K-OmniShade</div>
+      </div>
+    </aside>
+
+    <!-- main stub so the sidebar reads as a real layout -->
+    <main class="proto-main bg-surface-primary flex items-center justify-center">
+      <div class="text-center">
+        <div class="text-2xl font-semibold text-text-primary">聊天主区域</div>
+        <div class="text-sm text-text-tertiary mt-2">选择左侧会话或新建对话</div>
+      </div>
+    </main>
+  </div>
+</section>
+
+<!-- ============================ PAGE: CHAT ============================ -->
+<section class="proto-page" id="page-chat">
+  <!-- chat scoping root required by omni-craft-chat.css -->
+  <div class="omni-route-viewport bg-surface-chat min-h-screen flex flex-col">
+    <!-- header -->
+    <header class="flex items-center justify-between px-4 py-3 border-b border-border-light bg-surface-primary">
+      <div class="font-semibold text-text-primary">OmniShade 部署排期</div>
+      <button class="mock-btn ghost">GPT-4o ▾</button>
+    </header>
+
+    <!-- message list container (.flex.flex-col.pb-9.pt-14) -->
+    <div class="flex flex-col pb-9 pt-14 px-4 flex-1">
+      <!-- agent message -->
+      <div class="message-render">
+        <div class="agent-turn flex gap-3 max-w-3xl">
+          <h2><span class="size-6 t-avatar rounded-full bg-surface-submit" style="display:inline-block;width:28px;height:28px"></span></h2>
+          <div data-testid="message-body" class="flex-1">
+            <div class="markdown text-text-primary" style="line-height:1.6">
+              <p>已为你整理 <strong>OmniShade 桌面端</strong> 的部署排期，关键节点如下：</p>
+              <ul><li>Electron 壳层联调</li><li>omni-craft 主题层挂载</li><li>首屏加载性能验收</li></ul>
+              <pre style="padding:12px;border:1px solid var(--border-light);border-radius:12px;background:rgb(var(--surface-code))"><code>npm run build:desktop</code></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- user message -->
+      <div class="message-render">
+        <div class="user-turn flex justify-end pt-4">
+          <div data-testid="message-body" class="bg-surface-tertiary text-text-primary rounded-2xl px-4 py-3 max-w-2xl" style="border:1px solid var(--border-light)">
+            把时间表导出成 CSV 给我。
+          </div>
+        </div>
+      </div>
+
+      <!-- error state demo (omni-craft-states.css: bg-status-error-subtle / border-status-error-border) -->
+      <div class="message-render">
+        <div class="agent-turn pt-4">
+          <div class="bg-status-error-subtle border border-status-error-border rounded-xl px-4 py-3 text-sm text-text-primary min-h-40 flex items-center" style="border-color:rgba(255,120,120,.4)">
+            ⚠ 工具调用失败：上游 API 返回 429，请稍后重试。
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- composer (data-testid=composer-surface + omni-native-composer) -->
+    <div class="px-4 pb-6">
+      <div data-testid="composer-surface" class="omni-native-composer bg-surface-primary rounded-2xl p-3" style="border:1px solid var(--border-light)">
+        <textarea class="w-full bg-transparent text-text-primary resize-none" rows="3" placeholder="给 OmniShade 发消息…" style="border:0;outline:0;font-size:14px"></textarea>
+        <div class="flex items-center justify-end gap-2 pt-2">
+          <button data-testid="send-button" class="bg-surface-submit text-white rounded-lg px-4 py-2 font-semibold">发送</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ PAGE: SETTINGS ============================ -->
+<section class="proto-page" id="page-settings">
+  <div class="bg-surface-primary min-h-screen p-6">
+    <div class="text-2xl font-bold text-text-primary mb-1.5">设置</div>
+    <div class="text-sm text-text-tertiary mb-4">账户 · 外观 · 模型 · 数据</div>
+
+    <div class="proto-card p-5 mb-4">
+      <div class="text-lg font-semibold text-text-primary mb-1">外观主题</div>
+      <div class="text-sm text-text-secondary mb-3">选择界面明暗与对比模式。</div>
+      <div class="flex items-center justify-between gap-4">
+        <div class="flex-1 text-sm text-text-primary">暗色（OmniShade 工艺）</div>
+        <!-- toggle (data-state=checked) -->
+        <button data-state="checked" class="relative h-6 w-11 rounded-full bg-surface-submit" style="border:1px solid var(--border-medium)"><span class="absolute right-1 top-1 h-4 w-4 rounded-full bg-white"></span></button>
+      </div>
+    </div>
+
+    <div class="proto-card p-5 mb-4">
+      <div class="text-lg font-semibold text-text-primary mb-1">默认模型</div>
+      <div class="text-sm text-text-secondary mb-3">新对话默认使用的模型。</div>
+      <select class="mock-input">><option>GPT-4o</option><option>Claude 3.5</option><option>DeepSeek</option></select>
+    </div>
+
+    <div class="proto-card p-5 mb-4">
+      <div class="text-lg font-semibold text-text-primary mb-1">API 密钥</div>
+      <div class="text-sm text-text-tertiary mb-3">密钥仅保存在本地。</div>
+      <div class="flex flex-col gap-3">
+        <input class="mock-input" placeholder="sk-..." />
+        <div class="flex justify-end gap-4 pt-4">
+          <button class="mock-btn ghost">取消</button>
+          <button class="mock-btn bg-surface-submit">保存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ PAGE: KB (knowledge / files) ============================ -->
+<section class="proto-page" id="page-kb">
+  <div class="bg-surface-primary min-h-screen p-6">
+    <div class="text-2xl font-bold text-text-primary mb-1.5">知识库 / 文件</div>
+    <div class="text-sm text-text-tertiary mb-4">管理本地与云端检索文件。</div>
+
+    <!-- upload dropzone -->
+    <div class="group flex w-full flex-col rounded-xl border border-dashed border-border-medium bg-surface-secondary p-6 items-center mb-5">
+      <div class="text-text-primary font-medium">拖拽文件到此处上传</div>
+      <div class="text-sm text-text-tertiary mt-1">支持 PDF / Markdown / TXT</div>
+      <!-- progress track -->
+      <div class="h-2 w-full rounded-full bg-surface-tertiary mt-4 overflow-hidden" style="max-width:420px">
+        <div class="h-2 rounded-full bg-blue-600" style="width:62%"></div>
+      </div>
+    </div>
+
+    <!-- files table -->
+    <div class="rounded-lg border border-border-light bg-transparent shadow-sm transition-colors overflow-hidden mb-6">
+      <table class="table-fixed w-full">
+        <thead>
+          <tr>
+            <th class="bg-surface-secondary py-2 text-sm font-medium text-text-secondary text-left px-3">名称</th>
+            <th class="bg-surface-secondary py-2 text-sm font-medium text-text-secondary text-left px-3">大小</th>
+            <th class="bg-surface-secondary py-2 text-sm font-medium text-text-secondary text-left px-3">状态</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-b border-border-light transition-colors hover:bg-surface-secondary">
+            <td class="py-2 px-3 text-sm text-text-primary">部署手册.pdf</td>
+            <td class="py-2 px-3 text-sm text-text-secondary">2.4 MB</td>
+            <td class="py-2 px-3 text-sm text-text-secondary">已索引</td>
+          </tr>
+          <tr class="border-b border-border-light transition-colors hover:bg-surface-secondary">
+            <td class="py-2 px-3 text-sm text-text-primary">逆向笔记.md</td>
+            <td class="py-2 px-3 text-sm text-text-secondary">128 KB</td>
+            <td class="py-2 px-3 text-sm text-text-secondary">已索引</td>
+          </tr>
+          <tr class="border-b border-border-light transition-colors hover:bg-surface-secondary [&:last-child]:border-0">
+            <td class="py-2 px-3 text-sm text-text-primary">接口清单.txt</td>
+            <td class="py-2 px-3 text-sm text-text-secondary">9 KB</td>
+            <td class="py-2 px-3 text-sm text-text-secondary">已索引</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- knowledge cards -->
+    <div class="flex flex-wrap gap-2">
+      <div class="group relative inline-block text-sm text-text-secondary">
+        <div class="relative overflow-hidden rounded-2xl border border-border-medium bg-surface-secondary p-4" style="width:180px;height:120px">
+          <div class="font-semibold text-text-primary">产品文档</div>
+          <div class="text-text-tertiary mt-1">42 个片段</div>
+        </div>
+      </div>
+      <div class="group relative inline-block text-sm text-text-secondary">
+        <div class="relative overflow-hidden rounded-2xl border border-border-medium bg-surface-secondary p-4" style="width:180px;height:120px">
+          <div class="font-semibold text-text-primary">代码库索引</div>
+          <div class="text-text-tertiary mt-1">310 个片段</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ PAGE: TOOLS ============================ -->
+<section class="proto-page" id="page-tools">
+  <div class="bg-surface-primary min-h-screen p-6">
+    <div class="text-2xl font-bold text-text-primary mb-1.5">工具</div>
+    <div class="text-sm text-text-tertiary mb-5">已接入的能力与 Agent。</div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+      <!-- tool card -->
+      <div class="relative overflow-hidden rounded-2xl border border-border-light bg-surface-secondary p-6">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-10 h-10 rounded-xl bg-surface-tertiary flex items-center justify-center text-lg">🔍</div>
+          <div class="font-semibold text-text-primary">网页搜索</div>
+        </div>
+        <div class="text-sm text-text-tertiary">实时检索公开网页结果。</div>
+        <span class="size-2.5 rounded-full bg-surface-submit inline-block mt-3"></span>
+      </div>
+      <div class="relative overflow-hidden rounded-2xl border border-border-light bg-surface-secondary p-6">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-10 h-10 rounded-xl bg-surface-tertiary flex items-center justify-center text-lg">🧮</div>
+          <div class="font-semibold text-text-primary">代码执行</div>
+        </div>
+        <div class="text-sm text-text-tertiary">沙箱内运行 Python。</div>
+        <span class="size-2.5 rounded-full bg-surface-submit inline-block mt-3"></span>
+      </div>
+      <div class="relative overflow-hidden rounded-2xl border border-border-light bg-surface-secondary p-6">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-10 h-10 rounded-xl bg-surface-tertiary flex items-center justify-center text-lg">📊</div>
+          <div class="font-semibold text-text-primary">数据分析</div>
+        </div>
+        <div class="text-sm text-text-tertiary">上传表格做可视化。</div>
+        <span class="size-2.5 rounded-full bg-surface-tertiary inline-block mt-3"></span>
+      </div>
+      <div class="relative overflow-hidden rounded-2xl border border-border-light bg-surface-secondary p-6">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-10 h-10 rounded-xl bg-surface-tertiary flex items-center justify-center text-lg">🛠️</div>
+          <div class="font-semibold text-text-primary">MCP 工具</div>
+        </div>
+        <div class="text-sm text-text-tertiary">接入外部协议服务。</div>
+        <span class="size-2.5 rounded-full bg-surface-submit inline-block mt-3"></span>
+      </div>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>

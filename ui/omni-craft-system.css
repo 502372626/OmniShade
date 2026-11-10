@@ -1,0 +1,1106 @@
+/* ============================================================================
+ * omni-craft-system.css — OmniShade 全局设计系统工艺覆盖层 (OVERRIDE ONLY)
+ * ----------------------------------------------------------------------------
+ * 作用域：仅覆盖 LibreChat 编译产物 (desktop/ui/index.html + assets/index.*.css)，
+ *         不修改任何 React / TSX 源码。依赖不全无法重建，故只写 CSS 覆盖层。
+ *
+ * 加载顺序（关键）：本文件必须在 index.html <head> 末尾、已有的
+ *      <link rel="stylesheet" href="./omni-craft-sidebar.css" />
+ *      <link rel="stylesheet" href="./omni-craft-settings.css" />
+ *      <link rel="stylesheet" href="./omni-craft-chat.css" />
+ *   之后引入（即追加一行 <link rel="stylesheet" href="./omni-craft-system.css" />），
+ *   且位于 inline <style id="omni-craft"> 令牌表之后，因此本文件在级联上最后生效；
+ *   对竞争属性一律用 !important 兜底。
+ *   ⚠ 按本任务约束「只写 CSS 文件，不修改 index.html」——链接装配由父代理完成，
+ *     本文末「激活装配」一节给出需追加的确切一行。
+ *
+ * 本层负责的 5 条全局工艺基线：
+ *   ① 动效曲线统一   —— --ease-out: ease，并将控件过渡时长收口到 160–220ms。
+ *   ② 字号比例层级   —— 11/12/13/14/16/20，全部用 rem（根 16px），定义 --fs-*。
+ *   ③ 色彩对比度校验 —— 覆盖 --text-* 变量，全部满足 WCAG AA（正文 ≥4.5:1，
+ *                       大字号 ≥3:1）。实际比值见配套 omni-craft-system.说明.md。
+ *   ④ 间距标尺       —— 4/8/12/16/24/32，定义 --space-* 变量。
+ *   ⑤ 焦点可见性     —— 键盘焦点 2px accent 描边 + 2px 偏移，覆盖 inline 关掉的 outline。
+ *
+ * 特异性策略：令牌走 :root；全局接管走 `*`(!important)，可被任意更高特异性、
+ *             带 !important 的组件规则（如 craft 故意保留的弹簧缓动）自然压过，
+ *             实现「默认统一、特例保留」。
+ * ========================================================================== */
+
+:root {
+  /* ===================== ① 统一缓动曲线 ===================== */
+  /* 弹窗 / 按钮 / 输入框统一使用 CSS ease；160–220ms 内完成状态反馈。 */
+  --ease-out: ease;
+  --ease-standard: var(--ease-out);
+  --ease-out-fast: var(--ease-out);
+
+  /* ===================== ⑥ 时长阶（三档 150 / 250 / 400）=====================
+   * [AUDIT-FIX 2026-11-07] 全局动效收口为三档；component 层只准引用 --dur-*：
+   *   --dur-1 150ms  微交互：按下 / 图标按钮 hover / transform 缩放
+   *   --dur-2 150ms  悬停与淡入：列表行 hover、opacity、边框、渐变位置
+   *   --dur-3 250ms  表面态：阴影/底色/输入框聚焦辉光
+   *   --dur-4 250ms  面板进场：面板位移、开关滑块
+   *   --dur-5 400ms  大过渡：消息入场、抽屉滑入、路由级位移（本段下方新增）
+   */
+  --dur-1: 150ms;
+  --dur-2: 150ms;
+  --dur-3: 250ms;
+  --dur-4: 250ms;
+  --dur-press: var(--dur-1);
+  --dur-hover: var(--dur-2);
+  --dur-surface: var(--dur-3);
+  --dur-enter: var(--dur-4);
+  /* craft 组件的历史别名同步收口，避免局部仍停留在 120/240/320ms。 */
+  --omni-dur-1: var(--dur-1);
+  --omni-dur-2: var(--dur-2);
+  --omni-dur-3: var(--dur-3);
+  --omni-dur-4: var(--dur-4);
+  --omni-ease: var(--ease-out);
+
+  /* ===================== ② 字号阶梯（G31 · 6 级，px 定值）=====================
+   * 唯一真源。所有 font-size 必须落在这 6 级上：11 / 12 / 13 / 14 / 16 / 20。
+   * 每级配套行高（--lh-N），成对使用；阶梯外数值（15/22/0.85em 等）一律归并：
+   *   11 微标签（角标/计数/大写分组标签）
+   *   12 元信息（时间戳/帮助文本/次要说明）
+   *   13 次级正文（工具栏按钮、代码、列表副文本）
+   *   14 正文基准（聊天正文、字段名、输入框）
+   *   16 小标题（区块/分组标题、强调正文、markdown h2）
+   *   20 页标题（页面标题、markdown h1、空态主文案）
+   * 行高取 1.33–1.6 的整数像素值，保证 4 的倍数网格对齐。
+   */
+  --fs-1: 11px;  --lh-1: 16px;  /* 1.45 */
+  --fs-2: 12px;  --lh-2: 16px;  /* 1.33 */
+  --fs-3: 13px;  --lh-3: 20px;  /* 1.54 */
+  --fs-4: 14px;  --lh-4: 22px;  /* 1.57 —— 正文基准 */
+  --fs-5: 16px;  --lh-5: 24px;  /* 1.50 */
+  --fs-6: 20px;  --lh-6: 28px;  /* 1.40 */
+
+  /* 旧名兼容（历史引用保留语义，但全部收口到上面 6 级，不允许再新增旧名） */
+  --fs-xs:   var(--fs-2);   /* 12 */
+  --fs-sm:   var(--fs-3);   /* 13 */
+  --fs-base: var(--fs-4);   /* 14 */
+  --fs-md:   var(--fs-5);   /* 16 */
+  --fs-lg:   var(--fs-6);   /* 20 */
+  --fs-xl:   var(--fs-6);   /* 20 —— 旧 24 归并到最高级 */
+  --fs-2xl:  var(--fs-6);   /* 20 —— 旧 32 归并到最高级 */
+
+  /* ============== ④ 间距标尺（[UI-FINAL] 5 档节律 4/8/12/16/24）==============
+   * 第 6 档 32 与 24 在整屏尺度不可感知，并档收口；--space-6 名称保留，
+   * 旧引用零删除，引用点自动落 24。 */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 24px;
+
+  /* ===================== ④b 圆角规范（UI-R1 · [AUDIT-FIX] 语义三档）=====================
+   * 语义真源：控件 8 / 卡片 12 / 毛玻璃弹窗 16；xs 4 为行内代码微型档，
+   * pill/circle 保持语义形状。与 register.css 的 8/12 完全同基准。
+   * 兼容 assets/index.*.css 的 --radius / --theme-* 与 craft 的 --omni-radius-*。 */
+  --omni-radius-control: 8px;
+  --omni-radius-button: var(--omni-radius-control);
+  --omni-radius-input: var(--omni-radius-control);
+  --omni-radius-card: 12px;
+  --omni-radius-dialog: var(--omni-radius-card); /* [UI-FINAL] 16→12，两级 8/12 */
+  --omni-radius-xs: var(--omni-radius-control);  /* [UI-FINAL] 4→8，微型档并入控件档 */
+  --omni-radius-sm: var(--omni-radius-control);  /* 旧名兼容 */
+  --omni-radius-md: var(--omni-radius-card);     /* 旧名兼容 */
+  --omni-radius-lg: var(--omni-radius-dialog);   /* 旧名兼容 */
+  --omni-radius: var(--omni-radius-card);        /* 旧名兼容 */
+  --omni-radius-pill: 9999px;
+  --omni-radius-circle: 50%;
+  --radius: 12px !important;                    /* assets .rounded-lg / .rounded-md / .rounded-sm */
+  --theme-control-radius: 8px;
+  --theme-surface-radius: 12px;
+  --theme-large-surface-radius: 12px;           /* [UI-FINAL] 16→12，两级 8/12 */
+
+  /* ===================== ⑤ 焦点环参数 ===================== */
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+  /* --accent-primary 由 inline #omni-craft 注入 (#5b8cff)，此处仅兜底 */
+
+  /* ===================== ③ 色彩对比度（WCAG AA 已校验） =====================
+   * 校验工具：相对亮度法 (WCAG 2.1)，背景取各 token 实际落点：
+   *   -text-primary  → surface-chat   #0a0c10
+   *   -text-secondary→ surface-secondary #11141b
+   *   -text-tertiary→ surface-tertiary  #161a23
+   *   -text-muted    → surface-dialog   #13161e
+   * 原始 inline 值：tertiary #6f7889=3.92:1、muted #59617a=3.14:1 均「未达正文 4.5:1」，
+   * 仅勉强够大字号。下列提亮值全部 ≥5:1，正文/大字号双达标。具体比值见说明文档。 */
+  --text-primary:   238 242 248 !important; /* 17.4:1  (原 #e9edf5 16.5:1，已达标，略提亮) */
+  --text-secondary: 194 203 217 !important; /* 11.3:1  (原 #aab3c5 8.7:1，已达标) */
+  --text-tertiary:  154 164 182 !important; /*  6.9:1  (原 #6f7889 3.9:1 → 修复至 AA 正文) */
+  --text-muted:     154 164 182 !important; /* [UI-FINAL] 三级灰阶：muted 并入 tertiary(6.9:1)，全站文字仅三级 */
+
+  /* [G73] 曲线语义别名补全（新增，不改任何旧值）：aux 页（automation/model/register）
+   * 与 G64 判据都用 --ease-craft 这个名字，但 ui/ 目录里此前没有任何定义点，
+   * CDP 实测 document.documentElement 上 --ease-craft 为空串。指向同一曲线，值零变化。 */
+  --ease-craft: var(--ease-out);
+}
+
+/* ===================== 基准排版（rem 落地） ===================== */
+/* 锁定根字号为 16px，使上方 --fs-* 的 rem 映射稳定为标注 px 值 */
+html {
+  font-size: 100% !important; /* 16px */
+  -webkit-text-size-adjust: 100% !important;
+}
+/* 正文基准：14px / 22px 行高；组件层可用 --fs-* / --lh-* 成对覆盖。
+   行高写死像素（阶梯第 4 档 22px），不用 1.6 比例 —— 1.6×14=22.4 会带出阶梯外小数。 */
+body {
+  font-size: var(--fs-base) !important;
+  line-height: var(--lh-4, 22px) !important;
+  text-rendering: optimizeLegibility !important;
+  /* 兜底文字色：OmniShade 自绘 / JS 注入的节点（omni-brand-name、omni-shortcut、
+     omni-workspace-label 等）常常不带 color，父链一路继承到初始黑，黑字压在近黑底上直接消失。 */
+  color: rgb(var(--text-primary)) !important;
+}
+
+/* ===================== ① 全局动效曲线接管 =====================
+ * 把 Tailwind 默认 ease-in-out(.4,0,.2,1) 与各处零散曲线统一为 --ease-out。
+ * 机制：!important 作者声明压过一切非 !important 规则（含 Tailwind transition 工具类）；
+ *       而 craft 各文件里更高特异性的 !important 弹簧/特例缓动自然胜出，不被抹平。 */
+*,
+*::before,
+*::after {
+  transition-timing-function: var(--ease-out) !important;
+}
+
+/* ===================== ⑤ 焦点可见性（键盘可达） =====================
+ * 任何可聚焦元素拿到键盘焦点时，画 2px accent 描边 + 2px 偏移，确保 WCAG 2.4.7 可见焦点。
+ * :where() 内 0 特异性，纯「默认兜底」，不抢组件自身焦点样式。 */
+:where(
+  a[href],
+  button,
+  input,
+  select,
+  textarea,
+  [tabindex],
+  [role="button"],
+  [role="switch"],
+  [role="slider"],
+  [role="tab"],
+  [role="menuitem"],
+  summary,
+  [contenteditable="true"],
+  [contenteditable=""]
+):focus-visible {
+  outline: var(--focus-ring-width) solid rgb(var(--accent-primary, 91 140 255)) !important;
+  outline-offset: var(--focus-ring-offset) !important;
+}
+
+/* 输入框 / 文本域 / contenteditable：inline #omni-craft 用
+ *   textarea:focus,input:focus,div[contenteditable]:focus{outline:none!important;...}
+ * 关掉了原生描边、改走 box-shadow 辉光。box-shadow 是可见焦点，但键盘用户仍应有一致描边。
+ * 这里用同特异性 (0,1,1) + 更靠后源码顺序抢回 2px accent 描边。 */
+textarea:focus-visible,
+input:focus-visible,
+div[contenteditable]:focus-visible {
+  outline: var(--focus-ring-width) solid rgb(var(--accent-primary, 91 140 255)) !important;
+  outline-offset: var(--focus-ring-offset) !important;
+}
+
+/* ===================== 尊重「减少动态效果」偏好 =====================
+ * 保留曲线统一，但把时长压到瞬时，避免晕动；craft 文件里 transition:none 规则因特异性更高仍生效。 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    transition-timing-function: var(--ease-out) !important;
+  }
+}
+/* ===================== ⑥ 登录页主 CTA 对比度（G46）=====================
+ * 实测病灶：白字 rgb(255,255,255) on rgb(91,140,255) = 3.16:1（需 ≥4.5）。
+ * 不是色板问题 —— 同一个 --surface-submit 在授权面板用深字就是 6.1:1，
+ * 所以只换前景色：白 → rgb(var(--surface-primary))（12 14 19）= 6.10:1。
+ * 底色/尺寸/圆角/字重/动效零改动；hover 一并锁住，避免悬停又飘回浅色。
+ * 令牌写法：--surface-primary 是三元组，必须 rgb(var(--x))，裸 var() 会被整条丢弃。 */
+[data-testid='login-button'],
+[data-testid='login-button']:hover,
+[data-testid='login-button']:focus-visible {
+  color: rgb(var(--surface-primary)) !important;
+}
+
+/* ===================== ⑦ [G73] 越界收口（只新增声明，不改任何既有令牌值）=====================
+ * 实测依据：CDP 1440×900 /c/new 改前 24 条越界、/login 33 条；其中 8 条落在本层可管的
+ * 全局 chrome 上（omni-workspace-label 9px、omni-shortcut 10px、omni-chrome-actions gap 6px、
+ * 两个 shim 浮层入口 padding 6px×4）。其余属构建产物 Tailwind 与其它 craft 层，不归本文件接管。
+ */
+
+/* 7.1 UA 默认值清零 -------------------------------------------------------------
+ * UA 出厂值全都不在设计阶梯上：small 11.67px、option 内距 2/1px + gap 7px、
+ * checkbox 3px 外边距 + 13.33px 字号、fieldset/legend 内距。用 :where() 保持 0 特异性——
+ * 组件只要自己声明过就赢；本段只在「谁都没声明」时把 UA 值换成本层令牌。
+ * 作者样式按级联来源天然压过 UA 样式表，不需要 !important。 */
+/* small 这条实测结论：`:where(small)` 特异性 0 会被构建里 Tailwind Preflight 的
+ *   `small{font-size:80%}`（元素选择器 0,0,1）压掉，14px×80% = 11.2px 照旧。所以必须用
+ *   元素选择器（与 Preflight 同级、本文件更靠后 → 赢）；组件类 (.text-xs, 0,1,0) 仍压得过它。 */
+small { font-size: var(--fs-2); line-height: var(--lh-2); }
+:where(option) { padding: 0; margin: 0; gap: 0; font-size: var(--fs-4); line-height: var(--lh-4); }
+:where(input[type="checkbox"], input[type="radio"]) { margin: 0; font-size: var(--fs-4); line-height: var(--lh-4); }
+:where(fieldset) { padding: 0; margin: 0; border: 0; min-width: 0; }
+:where(legend) { padding: 0; }
+
+/* 7.2 任意值字号的行高塌陷 -------------------------------------------------------
+ * 构建里 `text-[10px]` / `text-[11px]` 只改字号不声明行高，于是继承 body 的 22px
+ * （10px 字 配 22px 行高 = 2.2 倍，chip/角标被撑高一倍）。CDP 实测 tools 卡片 chip
+ * 改前 line-height=22px。按最小档 16px 收口；组件若显式写了 leading-*，那是类选择器
+ * (0,1,0)，压过本段 :where() (0,0,0)，不会被抹平。
+ * [AUDIT-FIX 2026-11-07] 10px 本身越出 11px 最小字号档：font-size 一并收到 --fs-1，
+ * 需 !important 才能压过 Tailwind .text-[10px] 类 (0,1,0)。 */
+:where([class*="text-[10px]"], [class*="text-[11px]"]) { line-height: var(--lh-1); }
+:where([class*="text-[10px]"]) { font-size: var(--fs-1) !important; }
+
+/* 7.3 自绘 chrome 微标签：sidebar.css 那层当前整层不生效（G71 实测 25/27 死），
+ * 全局兜底放在令牌源头这层，保证任何路由下这两个值都落档。 */
+.omni-workspace-label,
+.omni-shortcut { font-size: var(--fs-1); line-height: var(--lh-1); }
+.omni-chrome-actions { gap: var(--space-2); }
+
+/* 7.4 shim 注入的两个浮层入口：inline style 的 6px 内距不在 4/8/12/16 档。
+ * inline 只能靠 !important 压。字号/字重/圆角/定位全不动。 */
+#omni-account-entry,
+#omni-official-site { padding: var(--space-2) var(--space-3) !important; }
+
+/* ===================== ⑧ [UI-R1] 编译产物的圆角兜底 =====================
+ * 只改 border-radius。:where() 保持 0 特异性，组件级 craft 规则仍可精确接管；
+ * !important 用来压过 assets/index.*.css 的 rounded-none / Preflight select 方角。 */
+:where(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  textarea,
+  select,
+  [role="combobox"],
+  [contenteditable="true"]
+) {
+  border-radius: var(--omni-radius-input) !important;
+}
+:where(button, [role="button"], .btn, .custom-btn):where(:not([class*="rounded-full"]):not([class*="rounded-theme-control-round"]):not([role="switch"]):not([role="slider"])) {
+  border-radius: var(--omni-radius-button) !important;
+}
+:where(dialog, [role="dialog"], [role="alertdialog"]) {
+  border-radius: var(--omni-radius-dialog) !important;
+}
+:where(
+  [class~="rounded"][class*="border"],
+  [class*="rounded-md"][class*="border"],
+  [class*="rounded-lg"][class*="border"],
+  [class*="rounded-xl"][class*="border"],
+  [class*="rounded-2xl"][class*="border"]
+):where(:not(button):not(input):not(textarea):not(select):not([role="button"]):not([role="dialog"]):not([role="alertdialog"]):not([class*="rounded-full"])) {
+  border-radius: var(--omni-radius-card) !important;
+}
+
+/* ===================== ⑧ [G81-UNUSED-CONTROLS] 删除三组无功能入口 =====================
+ * 按钮来自 LibreChat 压缩 bundle；这里用真实 DOM 的稳定 id/data-testid 隐藏，
+ * 不改 assets 产物。display:none 同时移出布局、命中测试与无障碍树。
+ * 图7：#audio-recorder 的普通麦克风/禁音态共用同一宿主，隐藏宿主即两态都消失。
+ * 图8：仅隐藏左侧四个面板入口，保留 composer 的 #attach-file-menu-button。
+ * 图9：#presets-button 是模型选择器右侧的叠放图标，旁边是添加多对话圆圈加号。 */
+#audio-recorder,
+[data-testid='nav-panel-prompts'],
+[data-testid='nav-panel-memories'],
+[data-testid='nav-panel-bookmarks'],
+[data-testid='nav-panel-files'],
+#presets-button,
+[data-testid='add-multi-convo-button'] {
+  display: none !important;
+}
+
+/* ============================================================================
+ * [GLASS-GRADIENT] OmniShade 现代设计令牌：深色渐变 + 毛玻璃 + 柔和动效
+ * 只改视觉，不改 DOM / JS。三元组令牌仍供 rgb(var(--x) / alpha) 消费；
+ * 渐变独立成背景令牌，避免把 gradient 塞进 --accent-primary 后让 rgb() 整链失效。
+ * ========================================================================== */
+:root {
+  /* [UI-FINAL] 单一强调色：品牌双色（青/蓝）全部并轨到 --accent-primary 通道
+   * （#5b8cff = 91 140 255）。teal/blue 名称保留为零删除的别名，值同轨。
+   * 全站色彩从「双色渐变」收敛为「单色点睛」。 */
+  --omni-brand-teal: 91 140 255;
+  --omni-brand-blue: 91 140 255;
+
+  /* [UI-FINAL] 画布收敛：主背景 #0f131a 系单色实底，环境光渐变全部退场。
+   * canvas/viewport 置 none：html,body 的 background-image:none 合法，
+   * 背景色透出；深度全部交给表面令牌表达。 */
+  --omni-bg-base: #0f131a;
+  --omni-bg-canvas: none;
+  --omni-bg-viewport: none;
+
+  /* [UI-FINAL] 强调色收敛为单一 accent 实色；hover 只提亮一档（122 165 255）。
+   * ⚠ 层叠安全：wash 会被写作 background 的非末层（`background: <wash>, <color>`），
+   * 纯色出现在非末层会让整条声明被浏览器丢弃，因此层叠消费点一律置 none。 */
+  --omni-accent-solid: rgb(91 140 255);
+  --omni-accent-solid-hover: rgb(122 165 255);
+  --omni-accent-gradient: var(--omni-accent-solid);
+  --omni-accent-gradient-hover: var(--omni-accent-solid-hover);
+  --omni-accent-wash: none;               /* hover 反馈改走实底色 + 边框档 */
+  /* 旧组件兼容名：chat/settings 已消费 --omni-brand-gradient。 */
+  --omni-brand-gradient: var(--omni-accent-solid);
+  --omni-brand-gradient-hover: var(--omni-accent-solid-hover);
+
+  /* [UI-FINAL] 边框两级（1px · subtle/strong）：全站描边唯一真源。
+   * subtle=静态分界线 7% 白；strong=悬停/浮层强调 15% 白。
+   * 历史玻璃名保留为别名（:root 只调不删），指向新真源。 */
+  --omni-border-subtle: rgba(255, 255, 255, 0.07);
+  --omni-border-strong: rgba(255, 255, 255, 0.15);
+  /* 玻璃材质：blur 通道全部归零（PERF-PURGE 的补全——sidebar 高特异性规则
+   * 曾压过通配拔除，令牌归零后两路都彻底退场）。 */
+  --omni-glass-card-blur: none;
+  --omni-glass-blur: none;
+  --omni-glass-blur-strong: none;
+  --omni-glass-bg: #131926;
+  --omni-glass-border: var(--omni-border-subtle);
+  --omni-glass-border-strong: var(--omni-border-strong);
+  --omni-glass-highlight: none;            /* 高光渐变退场 */
+  --omni-glass-gradient: none;             /* 层叠消费点置 none（见 S4b 注） */
+  --omni-glass-panel-gradient: #131926;    /* 浮层统一 surface-2 实底 */
+  /* [UI-FINAL] 浮层实底：与 FACE-FIX2 的实底口径一致，去半透明。 */
+  --surface-overlay: #131926 !important;
+
+  /* [UI-FINAL] 卡片：#0f131a 系上浮一档实底（surface-2），半透明/高光/模糊退场。 */
+  --omni-card-bg: #151b26;
+  --omni-card-bg-hover: #1a2230;
+  --omni-card-gradient: none;
+  --omni-card-border: var(--omni-border-subtle);
+  --omni-card-blur: none;
+
+  /* [UI-FINAL] 阴影收敛为单层中性投影（毛玻璃拔除后 inset 高光失去材质语境，
+   * 彩色辉光与「冷静收割者」气质相反）：
+   *   sm=控件级 / md=卡片 / lg=浮层 / accent=主 CTA 静态微影。
+   * hover 不再换影——反馈全部交给边框 strong 档。 */
+  --omni-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --omni-shadow-md: 0 4px 16px -8px rgba(0, 0, 0, 0.55);
+  --omni-shadow-lg: 0 16px 48px -16px rgba(0, 0, 0, 0.7);
+  --omni-shadow-accent: 0 2px 8px -4px rgba(0, 0, 0, 0.5);
+  --omni-card-shadow: var(--omni-shadow-md);
+  --omni-card-shadow-hover: var(--omni-shadow-md);
+  --omni-glass-shadow: var(--omni-shadow-lg);
+
+  /* 过渡语义：材质随 --dur-surface，hover 随 --dur-hover，进场随 --dur-enter。 */
+  --omni-transition-fast: var(--dur-1) var(--ease-out);
+  --omni-transition-base: var(--dur-2) var(--ease-out);
+  --omni-transition-surface:
+    background var(--dur-surface) var(--ease-out),
+    border-color var(--dur-surface) var(--ease-out),
+    box-shadow var(--dur-surface) var(--ease-out);
+  --omni-transition-lift:
+    transform var(--dur-hover) var(--ease-out),
+    box-shadow var(--dur-hover) var(--ease-out);
+  --omni-transition-enter:
+    opacity var(--dur-enter) var(--ease-out),
+    transform var(--dur-enter) var(--ease-out);
+}
+
+/* 环境光只进入画布，不新建元素，因此所有路由的测量几何保持不变。 */
+html,
+body {
+  background-color: var(--omni-bg-base) !important;
+  background-image: var(--omni-bg-canvas) !important;
+}
+.omni-route-viewport {
+  background: var(--omni-bg-viewport) !important;
+}
+/* 编译产物的两层 .bg-presentation 是主画布遮罩；只透明化含 main 的容器。 */
+.omni-route-viewport .bg-presentation:has(main[role='main']) {
+  background: transparent !important;
+}
+
+/* 浮层统一为半透明渐变 + 22px 背景模糊 + 顶部细高光。 */
+:is(
+  dialog,
+  [role='dialog'],
+  [role='alertdialog'],
+  [role='menu'],
+  .popover-ui,
+  [class*='bg-surface-overlay'][class*='rounded']
+) {
+  background: var(--omni-glass-panel-gradient) !important;
+  border: 1px solid var(--omni-glass-border-strong) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  box-shadow: var(--omni-glass-shadow) !important;
+  color: rgb(var(--text-primary)) !important;
+  transition: var(--omni-transition-surface) !important;
+}
+
+/* 普通卡片使用独立 16px 玻璃档，避免直接复用浮层的重阴影。 */
+:is(div, section, article)[class*='border'][class*='bg-surface']:not(
+  button,
+  input,
+  textarea,
+  select,
+  [role='dialog'],
+  [role='alertdialog'],
+  [role='menu'],
+  [data-testid='composer-surface']
+) {
+  background: var(--omni-card-gradient), var(--omni-card-bg) !important;
+  border-color: var(--omni-card-border) !important;
+box-shadow: var(--omni-card-shadow) !important;
+  transition: var(--omni-transition-surface) !important;
+}
+:is(div, section, article)[class*='border'][class*='bg-surface']:not(
+  button,
+  input,
+  textarea,
+  select,
+  [role='dialog'],
+  [role='alertdialog'],
+  [role='menu'],
+  [data-testid='composer-surface']
+):hover {
+  background: var(--omni-accent-wash), var(--omni-card-bg-hover) !important;
+  box-shadow: var(--omni-card-shadow-hover) !important;
+}
+
+/* 顶部命令入口与 shim 浮层入口共用一种玻璃材质，消灭突兀的实底。 */
+:is(
+  .omni-model-entry,
+  .omni-automation-entry,
+  .omni-account-entry,
+  .omni-theme-entry,
+  [data-testid='model-selector-button'],
+  #omni-account-entry,
+  #omni-official-site
+) {
+  background: var(--omni-glass-gradient), var(--omni-glass-bg) !important;
+  border-color: var(--omni-glass-border) !important;
+box-shadow: var(--omni-shadow-sm) !important;
+  color: rgb(var(--text-primary)) !important;
+  transition: var(--omni-transition-surface) !important;
+}
+:is(
+  .omni-model-entry,
+  .omni-automation-entry,
+  .omni-account-entry,
+  .omni-theme-entry,
+  [data-testid='model-selector-button'],
+  #omni-account-entry,
+  #omni-official-site
+):hover {
+  background: var(--omni-accent-wash), var(--omni-card-bg-hover) !important;
+  border-color: rgb(var(--omni-brand-teal) / 0.32) !important;
+}
+
+/* 主 CTA：单一 accent 实底 + 深墨前景（G46 口径 6.10:1）；hover 只提亮一档。 */
+:is(button, [role='button'])[class*='bg-surface-submit'],
+[data-testid='login-button'] {
+  background: var(--omni-accent-solid) !important;
+  border-color: transparent !important;           /* [UI-FINAL] 主按钮去描边强调 */
+  box-shadow: var(--omni-shadow-accent) !important;
+  color: rgb(var(--surface-primary, 12 14 19)) !important;
+  transition: var(--omni-transition-surface) !important;
+}
+:is(button, [role='button'])[class*='bg-surface-submit']:hover,
+[data-testid='login-button']:hover {
+  background: var(--omni-accent-solid-hover) !important;
+}
+.omni-brand-name {
+  background: none !important;
+  -webkit-background-clip: initial !important;
+  background-clip: initial !important;
+  color: rgb(var(--accent-primary, 91 140 255)) !important;
+  -webkit-text-fill-color: currentColor !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+}
+
+/* ===================== ⑨ [OMNI-GLASS-DIALOG] 弹窗（[UI-FINAL] 实底化）=====================
+ * Radix/LibreChat 的真实锚点是 [role=dialog][data-state]。外壳 surface-2 实底 +
+ * strong 描边 + 单层深影；opacity 固定为 1，enter/exit 动画不得淡化正文。
+ * 不在弹窗上写 transform transition，保留 G81 居中与拖拽坐标。 */
+html :is(
+  dialog,
+  [role='dialog'],
+  [role='alertdialog'],
+  .og-dialog,
+  [data-radix-dialog-content]
+):not([data-dialog]) {
+  background-color: #131926 !important;
+  background-image: none !important;
+  opacity: 1 !important;
+  border: 1px solid var(--omni-border-strong) !important;
+  border-radius: var(--omni-radius-dialog) !important;
+  box-shadow: var(--omni-shadow-lg) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  background-clip: padding-box !important;
+  color: rgb(var(--text-primary)) !important;
+  transition:
+    border-color var(--dur-2) ease,
+    background-color var(--dur-3) ease !important;
+}
+
+/* 文字与表单区与外壳同面实底（弹窗=单一平面，无内衬线）；不改布局。 */
+html :is(
+  dialog,
+  [role='dialog'],
+  [role='alertdialog'],
+  .og-dialog,
+  [data-radix-dialog-content]
+):not([data-dialog]) > :where(
+  :not(button):not([aria-hidden='true']):not(.sr-only):not(script):not(style)
+) {
+  background-color: #131926 !important;
+  background-image: none !important;
+  border-radius: var(--omni-radius-card);
+  box-shadow: none;
+}
+
+dialog::backdrop {
+  background: rgba(3, 7, 13, 0.64) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+/* Ariakit 的 [data-dialog] 是轻量弹出层，保留玻璃材质，不套模态框的实底内容卡。 */
+html [role='dialog'][data-dialog] {
+  background: var(--omni-glass-panel-gradient) !important;
+  border: 1px solid var(--omni-glass-border-strong) !important;
+  border-radius: var(--omni-radius-dialog) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  box-shadow: var(--omni-glass-shadow) !important;
+}
+
+/* ===================== ⑩ [OMNI-BTN] 按钮三态：主 / 次 / 幽灵 =====================
+ * [UI-FINAL 2026-11-08] 渐变按钮退场。全站按钮收敛为三态：
+ *   primary   —— bg-surface-submit / btn-primary / login / send / submit：
+ *                单一 accent 实底 + 深墨前景（见下一段）
+ *   secondary —— 本段默认：安静底 + 1px subtle 描边，hover 边框升 strong
+ *   ghost     —— 图标/工具钮（message-actions、图标轨等）：透明底，
+ *                hover 才见微底色（由组件层自带，见 chat.css C12）
+ * 位移、亮度滤镜、背景位移动画全部移除：反馈只走「底色/边框」两个通道。
+ * ⚠ background-image:none 不覆盖底色——按钮各自 Tailwind 底色保留，
+ *   primary 态由下一段更高特异性接管。开关/滑块/隐藏按钮照旧排除。 */
+html :is(
+  button,
+  [role='button'],
+  .btn,
+  .custom-btn,
+  input[type='submit'],
+  input[type='button']
+):where(:not([role='switch']):not([role='slider']):not(.sr-only)) {
+  background-image: none !important;
+  border-color: var(--omni-border-subtle) !important;
+  transition:
+    background-color var(--dur-2) ease,
+    border-color var(--dur-2) ease,
+    color var(--dur-2) ease !important;
+}
+html :is(
+  button,
+  [role='button'],
+  .btn,
+  .custom-btn,
+  input[type='submit'],
+  input[type='button']
+):where(:not([role='switch']):not([role='slider']):not(.sr-only)):hover:not(:disabled) {
+  border-color: var(--omni-border-strong) !important;
+}
+
+/* 主操作按钮（primary 态）：单一 accent 实底 + 深墨前景（≈6.1:1）。
+ * hover 只提亮一档，无位移无辉光；active 不再表演。 */
+html :is(
+  button,
+  [role='button'],
+  .btn,
+  .custom-btn,
+  input[type='submit'],
+  input[type='button']
+):is(
+  [class*='bg-surface-submit'],
+  [class*='btn-primary'],
+  [data-testid='login-button'],
+  [data-testid='send-button'],
+  [type='submit']
+) {
+  background: var(--omni-accent-solid) !important;
+  border-color: transparent !important;
+  color: #07101c !important;
+  box-shadow: none !important;
+  font-weight: 600 !important;
+}
+html :is(
+  button,
+  [role='button'],
+  .btn,
+  .custom-btn,
+  input[type='submit'],
+  input[type='button']
+):is(
+  [class*='bg-surface-submit'],
+  [class*='btn-primary'],
+  [data-testid='login-button'],
+  [data-testid='send-button'],
+  [type='submit']
+) :where(span, svg) {
+  color: #07101c !important;
+}
+html :is(
+  button,
+  [role='button'],
+  .btn,
+  .custom-btn,
+  input[type='submit'],
+  input[type='button']
+):is(
+  [class*='bg-surface-submit'],
+  [class*='btn-primary'],
+  [data-testid='login-button'],
+  [data-testid='send-button'],
+  [type='submit']
+):hover:not(:disabled) {
+  background: var(--omni-accent-solid-hover) !important;
+}
+html :is(button, [role='button'], .btn, .custom-btn):where(:disabled, [aria-disabled='true']) {
+  filter: saturate(0.55) !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+/* ===================== ⑪ [OMNI-GLOW-INPUT] 输入井（[UI-FINAL] 实底化）=====================
+ * 输入=「井」：底色比所在表面暗一档（surface-0）；聚焦 = accent 边框 + 单圈软环。
+ * 双环 1px/3px 是标准焦点环语义（功能性，不计入装饰）。 */
+html :is(input, textarea, select, [role='combobox'], [contenteditable='true']):where(
+  :not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file'])
+  :not([type='submit']):not([type='button'])
+) {
+  background-color: #0d1219 !important;
+  background-image: none !important;
+  border: 1px solid var(--omni-border-subtle) !important;
+  border-radius: var(--omni-radius-input) !important;
+  color: rgb(var(--text-primary)) !important;
+  caret-color: rgb(var(--accent-primary, 91 140 255)) !important;
+  box-shadow: none !important;
+  transition:
+    border-color var(--dur-2) ease,
+    background-color var(--dur-2) ease,
+    box-shadow var(--dur-2) ease !important;
+}
+html :is(input, textarea, select, [role='combobox'], [contenteditable='true']):where(
+  :not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file'])
+  :not([type='submit']):not([type='button'])
+):focus {
+  outline: none !important;
+  border-color: rgb(var(--accent-primary, 91 140 255)) !important;
+  background-color: #10161f !important;
+  box-shadow: 0 0 0 3px rgb(var(--accent-primary, 91 140 255) / 0.16) !important;
+}
+html :is(input, textarea, select, [role='combobox'], [contenteditable='true']):where(
+  :not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file'])
+  :not([type='submit']):not([type='button'])
+):focus-visible {
+  outline: 2px solid rgb(var(--accent-primary, 91 140 255)) !important;
+  outline-offset: 2px !important;
+}
+html :is(input, textarea):where(
+  :not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file'])
+)::placeholder {
+  color: rgb(var(--text-muted, 134 143 163)) !important;
+  opacity: 1 !important;
+}
+
+/* ===================== [IA-RHYTHM] 信息架构共享尺度 =====================
+ * 阅读列与状态留白在此定义；组件只消费语义令牌，不各写一套野值。 */
+:root {
+  --omni-content-measure: 840px;
+  --omni-reading-size: var(--fs-5);
+  --omni-reading-leading: var(--lh-6);
+  --omni-state-gap: var(--space-3);
+  --omni-state-padding: var(--space-6);
+}
+
+/* 错误卡与空态使用同一 16/32px 区块节奏；颜色、图标和动画归 states.css。 */
+html main[role="main"] [class*="bg-status-error-subtle"] {
+  margin-block: var(--space-4) !important;
+  padding: var(--space-4) !important;
+}
+html main[role="main"] [class*="bg-status-error-subtle"] > :first-child {
+  margin-top: 0 !important;
+}
+html main[role="main"] [class*="bg-status-error-subtle"] > :last-child {
+  margin-bottom: 0 !important;
+}
+
+/* ===================== [SIDEBAR-GLASS] 侧栏 / 会话 / 模型选择器 =====================
+ * 真实 DOM 锚点：aside.flex-shrink-0、data-testid=convo-item、
+ * [role=dialog][data-dialog]:has(#model-search)。只绘制表面与绝对定位指示条，
+ * 不改 DOM、类名、虚拟列表行高、下拉定位或交互。 */
+html :is(
+  aside[class*="flex-shrink-0"][class*="overflow-hidden"],
+  [class*="transition-width"][class*="bg-surface-secondary"]
+) {
+  background-color: #0d1219 !important;   /* [UI-FINAL] 凹档实底 */
+  background-image: none !important;
+  border-right: 1px solid var(--omni-border-subtle) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  box-shadow: none !important;
+}
+
+/* 会话项默认层只保留微弱高光；hover 与 active 明确分开，避免 hover 覆盖选中态。 */
+html :is(
+  aside[class*="flex-shrink-0"][class*="overflow-hidden"],
+  [class*="transition-width"][class*="bg-surface-secondary"]
+) [data-testid='convo-item'] {
+  background-color: transparent !important;   /* [UI-FINAL] 行默认零装饰 */
+  background-image: none !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  color: rgb(var(--text-secondary)) !important;
+  transition:
+    background-color var(--dur-2) var(--ease-out),
+    color var(--dur-2) var(--ease-out) !important;
+}
+html :is(
+  aside[class*="flex-shrink-0"][class*="overflow-hidden"],
+  [class*="transition-width"][class*="bg-surface-secondary"]
+) [data-testid='convo-item']:hover:not([class~='bg-surface-active-alt']):not([data-active-item='true']) {
+  background-color: rgba(255, 255, 255, 0.05) !important;   /* [UI-FINAL] 中性微底 */
+  background-image: none !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  color: rgb(var(--text-primary)) !important;
+}
+html :is(
+  aside[class*="flex-shrink-0"][class*="overflow-hidden"],
+  [class*="transition-width"][class*="bg-surface-secondary"]
+) [data-testid='convo-item'][class]:is([class~='bg-surface-active-alt'], [data-active-item='true']) {
+  background-color: rgb(var(--accent-primary, 91 140 255) / 0.12) !important;
+  background-image: none !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  color: rgb(var(--text-primary)) !important;
+}
+
+/* 左指示条不占布局；未选中时隐藏，hover 轻预览，active 常亮青→蓝渐变。 */
+html :is(
+  aside[class*="flex-shrink-0"][class*="overflow-hidden"],
+  [class*="transition-width"][class*="bg-surface-secondary"]
+) [data-testid='convo-item']::before {
+  content: "" !important;
+  position: absolute !important;
+  left: 0 !important;
+  top: var(--space-1) !important;
+  bottom: var(--space-1) !important;
+  width: var(--space-1) !important;
+  border-radius: var(--omni-radius-pill) !important;
+  background-color: rgb(var(--accent-primary, 91 140 255)) !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  opacity: 0 !important;
+  transform: scaleY(0.55) !important;
+  transform-origin: center !important;
+  transition:
+    opacity var(--dur-2) var(--ease-out),
+    transform var(--dur-2) var(--ease-out) !important;
+  pointer-events: none !important;
+}
+html :is(
+  aside[class*="flex-shrink-0"][class*="overflow-hidden"],
+  [class*="transition-width"][class*="bg-surface-secondary"]
+) [data-testid='convo-item']:hover::before {
+  opacity: 0.42 !important;
+  transform: scaleY(0.86) !important;
+}
+html :is(
+  aside[class*="flex-shrink-0"][class*="overflow-hidden"],
+  [class*="transition-width"][class*="bg-surface-secondary"]
+) [data-testid='convo-item']:is([class~='bg-surface-active-alt'], [data-active-item='true'])::before {
+  background-color: rgb(var(--accent-primary, 91 140 255)) !important;
+  background-image: none !important;
+  opacity: 1 !important;
+  transform: scaleY(1) !important;
+}
+
+/* 模型选择器是 Ariakit 轻量浮层；#model-search 把它与其它 data-dialog 精确区分。 */
+html [role='dialog'][data-dialog]:has(#model-search) {
+  background-color: #131926 !important;
+  background-image: none !important;
+  border: 1px solid var(--omni-border-strong) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  box-shadow: var(--omni-shadow-lg) !important;
+  color: rgb(var(--text-primary)) !important;
+}
+html [role='dialog'][data-dialog]:has(#model-search) #model-search {
+  background-color: #0d1219 !important;
+  background-image: none !important;
+  border-color: var(--omni-border-subtle) !important;
+  color: rgb(var(--text-primary)) !important;
+}
+html [role='dialog'][data-dialog]:has(#model-search) #model-search:focus {
+  background-color: #10161f !important;
+  border-color: rgb(var(--accent-primary, 91 140 255)) !important;
+  box-shadow: 0 0 0 3px rgb(var(--accent-primary, 91 140 255) / 0.16) !important;
+}
+html [role='dialog'][data-dialog]:has(#model-search) [role='option'] {
+  background-color: transparent !important;
+  background-image: none !important;
+  color: rgb(var(--text-secondary)) !important;
+  transition:
+    background-color var(--dur-2) var(--ease-out),
+    background-image var(--dur-2) var(--ease-out),
+    box-shadow var(--dur-2) var(--ease-out),
+    color var(--dur-2) var(--ease-out) !important;
+}
+html [role='dialog'][data-dialog]:has(#model-search) [role='option']:is(:hover, [data-active-item]) {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  color: rgb(var(--text-primary)) !important;
+}
+html [role='dialog'][data-dialog]:has(#model-search) [role='option'][aria-selected='true'] {
+  background-color: rgb(var(--accent-primary, 91 140 255) / 0.12) !important;
+  background-image: none !important;
+  box-shadow: inset 2px 0 0 rgb(var(--accent-primary, 91 140 255)) !important;
+  color: rgb(var(--text-primary)) !important;
+}
+
+
+/* ============================================================================
+ * [AUDIT-FIX 2026-11-07] 全局一致性收口（10 文件交叉审计的统一修正段）
+ * ----------------------------------------------------------------------------
+ * 审计报告：00-会话督办/10-体感优化-20261107/consistency-audit.md
+ * 本段 5 条全局修正（个别明确的不一致已在各文件原地改值，不在此重复）：
+ *   F1 动效第三档 —— 新增 --dur-5 400ms 大过渡档（:root 的 --dur-1..4 已原地
+ *      收口到 150/150/250/250）。消息入场/抽屉滑入/路由级位移统一引用本档。
+ *   F2 滚动条全站统一 —— 宽 9px。此前仅 sidebar.css 作用域内有这套样式，主窗口
+ *      其余滚动区域（消息流、弹窗内表格、设置页）走 UA 默认粗滚动条，跨页不一致。
+ *      Firefox 通道由 sidebar.css 的 * { scrollbar-width: thin } 全局兜底，两通道对齐。
+ *   F3 禁用态透明度统一档 —— --omni-disabled-opacity: 0.5。存量 0.32（chat 发送钮）
+ *      与 0.55（license 按钮）已在各文件原地归档；本条 :where() 0 特异性只做兜底，
+ *      组件显式声明仍可胜出。
+ *   F4 对比度兜底声明 —— color-mix 半透明前景统一提亮口径（正文 ≥4.5:1），
+ *      具体修正值见报告；此处不重复覆盖，仅声明档位语义供新代码引用。
+ *   F5 10px 任意值字号收到 11px 最小档 —— 已在 7.2 段原地补 font-size。
+ * ========================================================================== */
+
+/* F1 大过渡档（消息入场 / 抽屉 / 路由级位移） */
+:root {
+  --dur-5: 400ms;
+  --omni-dur-5: var(--dur-5);
+  --dur-large: var(--dur-5);
+}
+
+/* F2 全站 webkit 滚动条 9px（与 sidebar.css 同一套样式升为全局；同值幂等，
+ *    sidebar 自身规则保持不变，两侧级联不冲突） */
+*::-webkit-scrollbar {
+  width: 9px !important;
+  height: 9px !important;
+}
+*::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+*::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, rgb(var(--text-tertiary)) 26%, transparent) !important;
+  border-radius: var(--omni-radius-pill) !important;
+  border: 2px solid transparent !important;
+  background-clip: padding-box !important;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, rgb(var(--text-tertiary)) 48%, transparent) !important;
+  background-clip: padding-box !important;
+}
+
+/* F3 禁用态透明度统一档（0 特异性兜底；opacity 与既有 filter:saturate 降饱和叠加生效） */
+:root {
+  --omni-disabled-opacity: 0.5;
+}
+:where(button, [role='button'], input, select, textarea, a[href]):where(:disabled, [aria-disabled='true']) {
+  opacity: var(--omni-disabled-opacity);
+}
+
+/* ============================================================================
+ * [FACE-FIX 2026-11-07] 前脸修复 · 一：未登录/欢迎页「白底撕裂」根因修复（令牌补全）
+ * ----------------------------------------------------------------------------
+ * 根因定位（对照 assets/index.BhxCj7cH.css 实测）：
+ *   inline #omni-craft 只覆盖了 --surface-primary/secondary/tertiary/... 主链令牌，
+ *   而 LibreChat v0.8.8 编译产物中，左侧图标轨 / 顶栏 / 弹层卡片 / 登录框大量使用
+ *   **-alt 侧系令牌**与 --presentation：
+ *     .bg-surface-primary-alt → --surface-primary-alt（浅色 :root = var(--gray-50)≈白）
+ *     .bg-presentation        → --presentation（浅色 :root = var(--white) = 纯白）
+ *   桌面端未强制 .dark 类（主题 system + OS 浅色 / 或 theme=light）时，这些令牌
+ *   回落浅色值 → 顶栏白、左栏白，而主区被 craft 覆盖成黑 → 整屏撕裂。
+ * 修复：把全部缺失令牌在 :root 以 !important 钉死为暗色三元组，同时压过编译产物
+ * 的浅色 :root 与 .dark 两套定义；任何主题状态下整站不再出现白底。
+ * 存量令牌（inline #omni-craft 与本文件既有 :root 段）的值一律未动，只新增。
+ * ⚠ 三元组铁律：这些令牌会被编译产物以 rgb(var(--x) / op) 消费，必须写
+ *   「R G B」空格三元组，写 rgba() 整值会导致整条声明按 CVT 失效。
+ * ========================================================================== */
+:root {
+  /* —— 侧系表面（本次撕裂的主犯）—— */
+  --surface-primary-alt: 17 20 27 !important;        /* 原 gray-50(浅)/gray-850(暗) → 与 --surface-secondary 同档 */
+  --surface-secondary-alt: 22 26 35 !important;      /* 原 gray-200(浅)/gray-800(暗) */
+  --surface-tertiary-alt: 26 31 43 !important;       /* 原 white(浅)/gray-700(暗) */
+  --surface-hover-alt: 26 31 43 !important;          /* 原 gray-300(浅)/gray-600(暗) */
+  --surface-active-alt: 30 36 51 !important;         /* 原 gray-200(浅)/gray-700(暗)，与 --surface-active 同档 */
+  --surface-primary-contrast: 22 26 35 !important;   /* 原 #ececec(浅) —— 主面上的对比卡片 */
+
+  /* —— 顶栏 / 画布令牌：--presentation 浅色主题=纯白，顶栏白底第二主犯 —— */
+  --presentation: 10 12 16 !important;               /* bg-presentation / surface-code 的底 */
+
+  /* —— 其余未覆盖表面 —— */
+  --surface-fixed-hover: 22 26 35 !important;        /* 配合 inline 已钉死的 --surface-fixed(暗) */
+  --surface-inverted-hover: 243 245 249 !important;  /* inverted 是浅面（inline 233 237 245），hover 再亮一档 */
+  --surface-destructive: 153 27 27 !important;       /* red-800 */
+  --surface-destructive-hover: 127 29 29 !important; /* red-900 */
+  /* --surface-qr 保持白色：二维码要可扫，这是「图像」不是「UI 白底」 */
+  --surface-qr: 255 255 255 !important;
+
+  /* —— 文字侧系 —— */
+  --text-secondary-alt: 170 179 197 !important;      /* 介于 secondary 与 tertiary 之间 */
+  --text-fixed: 233 237 245 !important;              /* fixed 面已被 inline 钉暗，字必须浅 */
+  --text-inverted: 12 14 19 !important;              /* 浅 inverted 面上的深字，与 inline 配对 */
+  --text-on-status: 255 255 255 !important;          /* 彩色状态条上的白字，两主题本就一致，显式钉死 */
+
+  /* —— 描边 / 链接侧系 —— */
+  --border-medium-alt: 75 85 99 !important;          /* gray-600，暗色主题原值 */
+  --link: 91 140 255 !important;                     /* [UI-FINAL] 链接色并轨单一 accent */
+  --link-hover: 122 165 255 !important;
+  --link-visited: 192 132 252 !important;            /* 暗色主题原值 */
+
+  /* —— 顶栏令牌（LibreChat header 系）—— */
+  --header-primary: 17 20 27 !important;
+  --header-hover: 26 31 43 !important;
+  --header-button-hover: 26 31 43 !important;
+
+  /* —— 新增描边令牌：前脸「细描边」专用（非既有令牌，不违反“令牌不动值”）—— */
+  --border-subtle: rgba(255, 255, 255, 0.06);
+}
+
+/* ============================================================================
+ * [FACE-FIX 2026-11-07] 前脸修复 · 二：编译产物字面浅色工具类中和（禁止白底的兜底网）
+ * ----------------------------------------------------------------------------
+ * 令牌补全覆盖了走 var() 的类，但 bundle 里还有少量写死浅色的 Tailwind 工具类
+ * （登录卡片 bg-white、hover:bg-white、深灰文字 text-gray-700/800/900 等），
+ * 浅色主题下直接渲染白底/黑字。此处逐类中和为暗色，!important 压过非 important
+ * 的工具类与 .dark 变体。white/5、white/10、white/20 这类半透明白洗层是暗色
+ * hover 高光手法，刻意保留不动。
+ * ========================================================================== */
+.bg-white {
+  background-color: rgb(17 20 27) !important;
+}
+.bg-white\/75 {
+  background-color: rgba(17, 20, 27, 0.75) !important;
+}
+.hover\:bg-white:hover {
+  background-color: rgb(26 31 43) !important;
+}
+.dark .dark\:bg-white {
+  background-color: rgb(17 20 27) !important;
+}
+.text-black {
+  color: rgb(var(--text-primary)) !important;
+}
+.text-gray-700 {
+  color: rgb(var(--text-secondary)) !important;
+}
+.text-gray-800,
+.text-gray-900 {
+  color: rgb(var(--text-primary)) !important;
+}
+
+/* ============================================================================
+ * [FACE-FIX 2026-11-07] 前脸修复 · 三：上下滚动体验
+ * ----------------------------------------------------------------------------
+ * ① scroll-behavior: smooth —— 锚点/程序滚动平滑；
+ * ② overscroll-behavior —— html/body 用 none（杀橡皮筋+根链式滚动），
+ *    内部滚动容器用 contain（防链式滚动把滚动传给父层）；
+ * ③ 长列表 will-change: auto —— 提升主线程外滚动命中（仅 main/aside 内）；
+ * ④ hover 时滚动容器滚动条 9 → 12px 提高可抓性（宽度变化只影响内容区 3px，
+ *    容器边盒不变，无 hover 抖动回路）。
+ * 注：未做 html/body overflow:hidden 硬锁 —— app 壳是 h-full 容器滚动架构，
+ * 且登录/授权页在矮窗口下可能依赖页面滚动，硬锁有裁切风险；如实测确有
+ * 整页滚动，再追加一行 html,body{overflow:hidden!important} 即可。
+ * ========================================================================== */
+html {
+  scroll-behavior: auto !important;
+}
+html,
+body {
+  overscroll-behavior: none !important;
+}
+:where(
+  [class*="overflow-y-auto"],
+  [class*="overflow-auto"],
+  [class*="overflow-y-scroll"],
+  [class*="overflow-x-auto"]
+) {
+  overscroll-behavior: contain;
+}
+html :where(main[role="main"], aside) :where([class*="overflow-y-auto"]) {
+  will-change: auto;
+}
+/* [G95] 宽度保持不变，仅颜色加深；9→12 会让内容区每次 hover 缩 3px 触发全文折行 reflow */
+*:hover::-webkit-scrollbar {
+  width: 9px !important;
+  height: 9px !important;
+}
+
+/* ============================================================================
+ * [FACE-FIX 2026-11-07] 前脸修复 · 四：ui_shim 自绘 chrome 兜底
+ * ----------------------------------------------------------------------------
+ * ui_shim.js 注入的自绘顶栏 / 供应商卡片消费同一批令牌：
+ *   .title-strip → background:rgb(var(--header-primary))（浅色主题=纯白，顶栏白底元凶之一，
+ *                  已由上方 --header-primary 令牌补全修掉，此处再兜一层底）
+ *   .title-strip / #msg / .provider → border:rgb(var(--border-light))，而 inline 令牌
+ *                  是 rgba() 整值，rgb(rgba(...)) 属 CVT 无效 → 描边整条丢失。
+ *                  这里直接给 var() 整值描边，不经过 rgb() 包裹。
+ * shim 样式为运行时注入的非 important 规则，本段 !important 无论注入先后都稳赢。
+ * ========================================================================== */
+.title-strip {
+  background: rgb(17 20 27) !important;
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06)) !important;
+  color: rgb(var(--text-primary)) !important;
+}
+#msg,
+.provider {
+  border-color: var(--border-subtle, rgba(255, 255, 255, 0.06)) !important;
+}
+
+/* ============================================================================
+ * [FACE-FIX 2026-11-07] 前脸修复 · 五：::selection 选中高亮（粘贴/选字体验）
+ * ----------------------------------------------------------------------------
+ * 原 inline 是 32% 透明 accent，暗底上发灰。改为实底 accent + 白字，
+ * 选中即高亮，Ctrl+V/Ctrl+C 圈选范围一眼可辨。
+ * ========================================================================== */
+::selection {
+  background: rgb(var(--accent-primary, 91 140 255)) !important;
+  color: #fff !important;
+}
+
+
+/* [FACE-FIX2 2026-11-08] ① 浮层实底：所有下拉/菜单/弹层一律不透明（修透明下拉穿帮）
+ * [UI-FINAL] 浮层统一升到 surface-2 #131926：与画布 #0f131a 拉开一档深度，
+ * 与弹窗 ⑨ / 模型选择器同档，全站浮层一个平面语言。 */
+[data-radix-popper-content-wrapper] > *,
+[class*="DropdownMenu"], [class*="dropdown"], [role="menu"], [role="listbox"],
+[class*="Popover"], [role="dialog"], .rounded-lg[class*="shadow"] {
+  background: #131926 !important;
+  background-image: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* [FACE-FIX2 2026-11-08] ② 性能：blur 是卡顿主因，全站降档（顶栏 24→10，侧栏 8→4）；
+   动效时长减半，滚动相关 will-change 移除 */
+/* [G95] 只给合成属性上过渡；布局属性(width/height/max-height/top/left)一律不进过渡，
+   否则 pre hover 展开/列表重排会变成 120ms 布局补间=全列表逐帧 reflow（"卡一下"元凶） */
+* { animation-duration: .12s !important; transition-duration: .12s !important; transition-property: opacity, transform, color, background-color, border-color, box-shadow, fill, stroke !important; }
+[class*="will-change-scroll"] { will-change: auto !important; }
+
+
+/* [PERF-PURGE 2026-11-08] 滚动性能终版：全站拔毛玻璃。
+ * blur 在滚动容器/sticky 头/气泡上全部退场——合成器只推像素，不再做实时模糊。
+ * 想要的质感用纯色+边框表达。 */
+*, *::before, *::after {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+/* 合成友好：滚动容器内容层提升，主线程不再参与滚动 */
+/* [PERF-PURGE] contain 通配符已撤（fixed 弹层副作用风险 > 收益） */

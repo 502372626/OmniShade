@@ -1,0 +1,164 @@
+<!doctype html>
+<!-- 自动生成 by desktop/00-会话督办/02-脚本/cdp_compare.py —— 请勿手改 -->
+<!-- 用途: 「空态 / 加载态」前后对比载体。仅搭骨架, 颜色/圆角/间距全部来自 -->
+<!--      assets/index.CVpla9dX.css(真 LibreChat 编译产物) + 9 个 omni-craft CSS(真工艺层)。 -->
+<html lang="zh-CN" class="dark" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<title>OmniShade omni-craft compare — 空态 / 加载态</title>
+<link rel="stylesheet" href="./assets/index.CVpla9dX.css" />
+<link rel="stylesheet" href="./assets/vendor.BJRvvXDx.css" />
+<style id="omni-craft" class="craft-only">
+:root{
+  --surface-primary:12 14 19!important;
+  --surface-secondary:17 20 27!important;
+  --surface-tertiary:22 26 35!important;
+  --surface-chat:10 12 16!important;
+  --surface-hover:26 31 43!important;
+  --surface-active:30 36 51!important;
+  --surface-overlay:rgba(18,22,30,.88)!important;
+  --surface-dialog:19 22 30!important;
+  --surface-fixed:14 17 24!important;
+  --surface-code:11 13 18!important;
+  --surface-composer-hover:26 31 43!important;
+  --surface-submit:91 140 255!important;
+  --surface-submit-hover:111 155 255!important;
+  --surface-inverted:233 237 245!important;
+  --text-primary:233 237 245!important;
+  --text-secondary:170 179 197!important;
+  --text-tertiary:111 120 137!important;
+  --text-muted:134 143 163!important;              /* 原 #59617a：对 --surface-active(#1e2433) 仅 2.52:1，正文 AA 不达标；
+                                                  #868fa3 对同一底色 4.77:1 ≥ 4.5 达标（详见 G3-修复复测.md） */
+  --border-light:rgba(255,255,255,.06)!important;
+  --border-medium:rgba(255,255,255,.10)!important;
+  --border-heavy:rgba(255,255,255,.16)!important;
+  --border-xheavy:rgba(255,255,255,.22)!important;
+  --accent-primary:91 140 255!important;
+  --accent-primary-hover:111 155 255!important;
+  --radius:12px!important;
+}
+*{box-sizing:border-box;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+/* 兜底文字色: 任何一个没显式 color 的节点都继承到浅色, 不会出现「黑字 + 黑底」不可读 */
+html,body{background:#080a0e!important;color:rgb(var(--text-primary))!important;font-family:"Inter","Microsoft YaHei",system-ui,-apple-system,"Segoe UI",sans-serif!important}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(120,135,170,.28);border-radius:8px;border:2px solid transparent;background-clip:padding-box}
+::-webkit-scrollbar-thumb:hover{background:rgba(120,135,170,.45);background-clip:padding-box}
+::selection{background:rgba(91,140,255,.32);color:#fff}
+textarea:focus,input:focus,div[contenteditable]:focus{outline:none!important;box-shadow:0 0 0 1px rgba(91,140,255,.4),0 0 18px -6px rgba(91,140,255,.5)!important}
+  </style>
+  <link rel="stylesheet" href="./omni-craft-sidebar.css" class="craft-only" />
+  <link rel="stylesheet" href="./omni-craft-settings.css" class="craft-only" />
+  <link rel="stylesheet" href="./omni-craft-chat.css" class="craft-only" />
+  <link rel="stylesheet" href="./omni-craft-kb.css" class="craft-only" />
+  <link rel="stylesheet" href="./omni-craft-tools.css" class="craft-only" />
+  <link rel="stylesheet" href="./omni-craft-states.css" class="craft-only" />
+  <link rel="stylesheet" href="./omni-craft-boot.css" class="craft-only" />
+  <link rel="stylesheet" href="./omni-craft-system.css" class="craft-only" />
+  <link rel="stylesheet" href="./omni-craft-license.css" class="craft-only" />
+<style>
+  html,body{margin:0}
+  /* 原型壳显式上色: 一律用 rgb(var(--token)) 显式取色, 不靠继承 —— 避免「没 color 就继承黑 / 没背景就透明」 */
+  html,body{background:rgb(var(--surface-chat,10 12 16))!important;color:rgb(var(--text-primary,233 237 245))!important}
+  .proto-page{min-height:100vh;padding:32px 40px;background:rgb(var(--surface-chat,10 12 16))!important;color:rgb(var(--text-primary,233 237 245))!important}
+  .row{display:flex;gap:24px;flex-wrap:wrap}
+  .col{flex:1 1 420px;min-width:0}
+  .cap{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:rgb(var(--text-tertiary,111 120 137))!important;margin:0 0 10px}
+  /* 卡片 / 面板 / 骨架块: 显式底色 + 显式文字色 */
+  .rounded-xl,[class*=border-dashed],[class*=min-h-40],[class*=py-16],#loading-container{
+    background:rgb(var(--surface-tertiary,22 26 35))!important;
+    color:rgb(var(--text-primary,233 237 245))!important}
+  .skel-line{height:12px;border-radius:6px;margin:10px 0;background:rgb(var(--surface-active,30 36 51))!important}
+  .shimmer,.result-thinking{color:rgb(var(--accent-primary,91 140 255))!important}
+</style>
+</head>
+<body>
+
+<!-- ============================ 空态 ============================ -->
+<section class="proto-page" id="page-empty">
+  <h2 class="text-2xl text-text-primary" style="margin:0 0 24px">知识库 · 暂无条目</h2>
+  <div class="row">
+    <div class="col">
+      <p class="cap">A · 整屏空态 [class*=py-16]</p>
+      <div class="flex min-h-40 flex-col items-center justify-center gap-3 rounded-xl border border-dashed"
+           style="border-color:rgba(255,255,255,.10);padding:24px;text-align:center">
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <rect x="3" y="4" width="18" height="16" rx="2.5" /><path d="M8 9h8M8 13h5" />
+        </svg>
+        <p class="text-text-primary" style="margin:0">还没有上传任何文档</p>
+        <p class="text-text-secondary" style="margin:0;font-size:13px">把文件拖进来，或点击浏览本地文件。</p>
+      </div>
+    </div>
+    <div class="col">
+      <p class="cap">B · 虚线占位 [class*=border-dashed]</p>
+      <div class="flex min-h-40 flex-col items-center justify-center gap-3 border border-dashed rounded-xl"
+           style="padding:20px">
+        <p class="text-text-primary" style="margin:0">拖拽文件到此上传</p>
+        <p class="text-text-secondary" style="margin:0;font-size:13px">支持 PDF / MD / TXT / DOCX</p>
+      </div>
+    </div>
+    <div class="col">
+      <p class="cap">C · 列表空态 [class*=py-16]</p>
+      <div class="flex flex-col items-center justify-center py-16 text-center"
+           style="border:1px solid rgba(255,255,255,.06);border-radius:12px">
+        <p class="text-text-primary" style="margin:0 0 6px">暂无会话</p>
+        <p class="text-text-secondary" style="margin:0;font-size:13px">点击左上角「新建对话」开始。</p>
+      </div>
+    </div>
+    <div class="col">
+      <p class="cap">D · 搜索无结果</p>
+      <div class="flex flex-col items-center justify-center py-16 text-center"
+           style="border:1px solid rgba(255,255,255,.06);border-radius:12px">
+        <p class="text-text-primary" style="margin:0 0 6px">没有匹配的条目</p>
+        <p class="text-text-secondary" style="margin:0;font-size:13px">换个关键词试试。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 加载态 ============================ -->
+<section class="proto-page" id="page-loading">
+  <h2 class="text-2xl text-text-primary" style="margin:0 0 24px">加载态 / 骨架屏</h2>
+  <div class="row">
+    <div class="col">
+      <p class="cap">A · .spinner(SVG 旋转圈)</p>
+      <div class="rounded-xl" style="border:1px solid rgba(255,255,255,.06);padding:36px;display:flex;
+                  align-items:center;justify-content:center;gap:28px">
+        <span class="spinner" style="width:34px;height:34px;display:inline-block"></span>
+        <div class="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600"
+             style="border-width:2px;border-color:rgba(120,150,220,.25);border-bottom-color:#3b82f6"></div>
+      </div>
+    </div>
+    <div class="col">
+      <p class="cap">B · .shimmer(骨架文字微光)</p>
+      <div class="rounded-xl" style="border:1px solid rgba(255,255,255,.06);padding:36px">
+        <div class="shimmer" style="font-size:22px;font-weight:600">正在生成回复…</div>
+        <div class="shimmer" style="font-size:14px;margin-top:8px">正在检索本地知识库并组织答案</div>
+      </div>
+    </div>
+    <div class="col">
+      <p class="cap">C · .animate-pulse(骨架块)</p>
+      <div class="rounded-xl" style="border:1px solid rgba(255,255,255,.06);padding:24px">
+        <div class="animate-pulse skel-line" style="background:rgba(255,255,255,.10);width:88%"></div>
+        <div class="animate-pulse skel-line" style="background:rgba(255,255,255,.10);width:72%"></div>
+        <div class="animate-pulse skel-line" style="background:rgba(255,255,255,.10);width:94%"></div>
+        <div class="animate-pulse skel-line" style="background:rgba(255,255,255,.10);width:60%;height:44px"></div>
+      </div>
+    </div>
+    <div class="col">
+      <p class="cap">D · 生成中呼吸点 .submitting .result-thinking</p>
+      <div class="submitting rounded-xl" style="border:1px solid rgba(255,255,255,.06);padding:24px">
+        <span class="result-thinking"></span>
+      </div>
+    </div>
+    <div class="col">
+      <p class="cap">E · #loading-container(启动屏)</p>
+      <div id="loading-container" style="width:100%;height:180px;display:flex;
+                  align-items:center;justify-content:center;border:1px dashed rgba(255,255,255,.12);
+                  border-radius:12px"></div>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>

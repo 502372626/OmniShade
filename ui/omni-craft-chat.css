@@ -1,0 +1,1308 @@
+/* =============================================================================
+ * omni-craft-chat.css  —  OmniShade 主聊天页工艺覆盖层 (OVERRIDE ONLY)
+ * -----------------------------------------------------------------------------
+ * 作用域: 仅覆盖 LibreChat 编译产物 (desktop/ui/index.html + assets/index.*.css)，
+ *         不修改任何 React / TSX 源码，依赖不全无法重建，故只写 CSS 覆盖层。
+ * 加载方式: 由 index.html <head> 末尾的
+ *           <link rel="stylesheet" href="./omni-craft-chat.css" />
+ *           引入，位于 index.*.css 与 inline #omni-craft 令牌表之后，
+ *           因此本文件在级联顺序上最后生效；对竞争属性再用 !important 兜底。
+ *
+ * ⚠ 令牌写法铁律（G31 实测校正）：inline #omni-craft 里 --surface-* / --text-* /
+ *   --accent-* 是「RGB 三元组」（如 --text-primary: 233 237 245），必须写成
+ *   rgb(var(--xxx)) 或 rgb(var(--xxx) / .6)；--border-* / --radius / --ease-* 是完整
+ *   颜色或长度，直接 var() 引用。三元组裸 var(--x) 用在 color/border-color 上会被浏览器
+ *   整条丢弃 —— 本包已踩过，改样式时别再犯。
+ *
+ * 工艺体系（G31 收口，唯一真源在 omni-craft-system.css）:
+ *   字号阶梯 6 级  11 / 12 / 13 / 14 / 16 / 20  (--fs-1..6 → --omni-fs-*)
+ *   间距标尺      4 / 8 / 12 / 16 / 24 / 32     (--space-1..6 → --omni-space-*)
+ *   时长阶        150 / 250 / 400 ms 三档    (--dur-1..4 → --omni-dur-*, 大过渡 --dur-5)
+ *   主曲线        cubic-bezier(0.22, 1, 0.36, 1)
+ *   圆角规范      卡片 12 / 按钮与输入框 8 / 弹窗 16 + pill/circle
+ *
+ * 聊天块字号指派（本文件负责，14px 单级已拆开）:
+ *   20 → markdown h1 / 空态主文案
+ *   16 → markdown h2
+ *   14 → 正文（message-content / .markdown / textarea）
+ *   13 → 代码块 / 行内代码 / 工具栏按钮
+ *   12 → 消息元信息（发送者、时间戳、状态位）
+ * ========================================================================== */
+
+:root {
+  /* 工艺令牌 (全部复用 inline #omni-craft 的 OmniShade 暗色变量) */
+  /* ---- 圆角令牌由 omni-craft-system.css 统一提供（UI-R1） ---- */
+
+  /* ---- 主缓动曲线（全局唯一）：快速起步 + 长尾收敛 ---- */
+  --omni-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* ---- 字号阶梯（G31）：一律走全局 6 级，禁止再写裸 px / 0.85em ---- */
+  --omni-fs-sm: var(--fs-3, 13px);     /* 13 次级：代码 / 工具栏 */
+  --omni-fs-base: var(--fs-4, 14px);   /* 14 正文 */
+  --omni-fs-md: var(--fs-5, 16px);     /* 16 小标题 */
+  --omni-fs-lg: var(--fs-6, 20px);     /* 20 页级标题 */
+  --omni-fs-meta: var(--fs-2, 12px);   /* 12 消息元信息 */
+
+  /* ---- 间距：8pt 主节奏，全部落在 4 的倍数 ---- */
+  --omni-space-1: var(--space-2, 8px);
+  --omni-space-2: var(--space-3, 12px);
+  --omni-space-3: var(--space-4, 16px);
+  --omni-space-4: var(--space-5, 24px);
+  --omni-space-5: var(--space-6, 32px);
+  --omni-space-half: var(--space-1, 4px);
+
+  /* ---- 时长阶（G31）：按层级递增，全部配 --omni-ease ---- */
+  --omni-dur-1: var(--dur-1, 150ms);
+  --omni-dur-2: var(--dur-2, 150ms);
+  --omni-dur-3: var(--dur-3, 250ms);
+  --omni-dur-4: var(--dur-4, 250ms);
+
+  --omni-accent: var(--accent-primary, #5b8cff);
+  /* [UI-FINAL] 气泡单层影 + 焦点双环（1px 实 + 3px 软），去长投影与彩色泛光 */
+  --omni-bubble-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --omni-glow: 0 0 0 1px rgb(var(--accent-primary, 91 140 255) / 0.55),
+    0 0 0 3px rgb(var(--accent-primary, 91 140 255) / 0.15);
+}
+
+/* ============================== 消息行 / 列表节奏 ============================== */
+/* 每条消息之间 16px 垂直呼吸 (4/8/12/16/24/32 中的 16) */
+.omni-route-viewport .message-render {
+  padding-top: var(--omni-space-3) !important;
+  /* 入场动效: 透明 + 轻微上移 -> 归位；大过渡档 400ms（[AUDIT-FIX 2026-11-07]） */
+  animation: omni-msg-in var(--omni-dur-5, var(--dur-5, 400ms)) var(--omni-ease) both !important;
+}
+
+/* 列表容器顶部留白收紧一点点，让首条消息不贴顶 (pt-14 -> 24) */
+.omni-route-viewport .flex.flex-col.pb-9.pt-14 {
+  padding-top: var(--omni-space-4) !important;
+  padding-bottom: var(--omni-space-5) !important;   /* pb-9=36px 野值 -> 32（8pt 最高档） */
+}
+
+/* ============================== 间距归一拍平（G31）==============================
+ * prose 插件用 em 级边距（ul 14 / li 5.25 / code 16.25），全是 2px 步进外的野值。
+ * 这里在 markdown 作用域内统一压到 8pt 网格：列表缩进 16、段间 12、列表项 8、行内元素零边距。 */
+.omni-route-viewport .markdown :is(ul, ol) {
+  padding-left: var(--omni-space-4) !important;     /* 16 */
+  margin: var(--omni-space-3) 0 !important;         /* 12 */
+}
+.omni-route-viewport .markdown li {
+  padding-left: 0 !important;                       /* 原 0.375em = 5.25px */
+}
+.omni-route-viewport .markdown :is(ul, ol) > li::marker {
+  color: rgb(var(--text-tertiary)) !important;
+}
+.omni-route-viewport .markdown :is(code, kbd, samp, pre) {
+  margin-block: 0 !important;                       /* 清掉 prose 给 code 的 16.25 底边距 */
+}
+
+/* ============================== 消息气泡 ============================== */
+/* [UI-FINAL] 用户泡：单一 accent 实底 + 深墨前景（≈5.9:1）。
+ * 双色渐变两端亮度不同导致链接对比度要按最坏端校验；实底一次校验全局成立。
+ * 渐变/双层高光/彩色投影/方向角全部收敛。 */
+.omni-route-viewport .message-render .user-turn [data-testid='message-body'] {
+  position: relative !important;
+  isolation: isolate !important;
+  background: rgb(var(--accent-primary, 91 140 255)) !important;
+  border: 1px solid transparent !important;
+  border-radius: var(--omni-radius-card, 12px) var(--omni-radius-card, 12px)
+    var(--omni-radius-control, 8px) var(--omni-radius-card, 12px) !important;
+  padding: var(--omni-space-2) var(--omni-space-3) !important;
+  color: #07131d !important;
+  -webkit-box-shadow: var(--omni-bubble-shadow) !important;
+  transition: none !important;
+}
+
+.omni-route-viewport .message-render .user-turn [data-testid='message-body']
+  :is(.message-content, .markdown, .message-editor-text, h1, h2, h3, h4, h5, h6, strong) {
+  color: #07131d !important;
+}
+
+.omni-route-viewport .message-render .user-turn [data-testid='message-body'] a {
+  /* [AUDIT-FIX 2026-11-07] 对比度：蓝端底(#6291f1)上 4.47:1 差 0.03 未达正文 4.5，
+   * 加深三阶至 #06293f：蓝端 4.88:1 / teal 端 8.19:1，两端双达标。 */
+  color: #06293f !important;
+  text-decoration-color: rgba(6, 41, 63, 0.48) !important;
+}
+
+.omni-route-viewport .message-render .user-turn [data-testid='message-body']
+  :where(code):not(pre code) {
+  background: rgba(4, 19, 30, 0.12) !important;
+  border-color: rgba(4, 19, 30, 0.16) !important;
+  color: #07131d !important;
+}
+
+/* [UI-FINAL] 用户泡 hover（位移/换边/换影）移除——气泡是内容容器，不是控件。 */
+
+/* [UI-FINAL] 助手泡：surface-2 实底 + 1px subtle + 单层影；无 hover 表演。 */
+.omni-route-viewport .message-render .agent-turn [data-testid='message-body'] {
+  background: #151b26 !important;
+  border: 1px solid var(--omni-border-subtle, rgba(255, 255, 255, 0.07)) !important;
+  border-radius: var(--omni-radius-card, 12px) !important;
+  padding: var(--omni-space-3) !important;
+  -webkit-box-shadow: var(--omni-bubble-shadow) !important;
+  transition: none !important;
+}
+
+/* ============================== 头像 ============================== */
+/* 助手头像包裹 (span.size-6.rounded-full): 描边 + 双层环影，强化聚焦 */
+.omni-route-viewport .message-render .agent-turn h2 > span.size-6 {
+  border: 1px solid var(--omni-border-strong, rgba(255, 255, 255, 0.15)) !important;
+  box-shadow: 0 0 0 2px rgb(var(--surface-primary, 17 20 27)) !important;
+  transition: box-shadow var(--omni-dur-2) var(--omni-ease),
+    border-color var(--omni-dur-2) var(--omni-ease) !important;
+}
+
+/* 头像图片本体圆形裁切 + 平滑 */
+.omni-route-viewport .t-avatar {
+  border-radius: var(--omni-radius-circle, 50%) !important;
+  object-fit: cover !important;
+}
+
+/* ============================== 消息元信息（12 · 阶梯第 2 级）==============================
+ * 发送者名 / 时间戳 / 模型标签 / 状态位：压到 12px + 16 行高，与正文 14px 拉开一级。
+ * 同时盖住 Tailwind 的 text-xs / text-sm 两种落点，避免 12/14 混着来。 */
+.omni-route-viewport .message-render .message-header,
+.omni-route-viewport .message-render h2 > span:not(.size-6),
+.omni-route-viewport .message-render [role='status'],
+.omni-route-viewport .message-render .text-xs,
+.omni-route-viewport .message-render [class*='text-xs'],
+.omni-route-viewport .message-render time {
+  font-size: var(--omni-fs-meta) !important;
+  line-height: var(--lh-2, 16px) !important;
+  letter-spacing: 0.01em !important;
+}
+
+/* ============================== Markdown 排版 (字号阶梯) ============================== */
+.omni-route-viewport .markdown {
+  font-size: var(--omni-fs-base) !important;   /* 14 */
+  line-height: var(--lh-4, 22px) !important;
+  /* craft 自持调色板：不依赖 prose-invert 的暗色变体是否被 .dark 挂上 */
+  color: rgb(var(--text-primary)) !important;
+}
+
+.omni-route-viewport .markdown :is(h1, h2, h3, h4, h5, h6) {
+  color: rgb(var(--text-primary)) !important;
+}
+
+.omni-route-viewport .markdown h1 {
+  font-size: var(--omni-fs-lg) !important;     /* 20 */
+  line-height: var(--lh-6, 28px) !important;
+  margin: var(--omni-space-3) 0 var(--omni-space-1) !important;
+}
+
+.omni-route-viewport .markdown h2 {
+  font-size: var(--omni-fs-md) !important;     /* 16 */
+  line-height: var(--lh-5, 24px) !important;
+  margin: var(--omni-space-2) 0 var(--omni-space-1) !important;
+}
+
+.omni-route-viewport .markdown h3,
+.omni-route-viewport .markdown h4 {
+  font-size: var(--omni-fs-base) !important;   /* 14 + 加粗分层 */
+  line-height: var(--lh-4, 22px) !important;
+  margin: var(--omni-space-2) 0 var(--omni-space-1) !important;
+}
+
+.omni-route-viewport .message-content,
+.omni-route-viewport .message-editor-text {
+  font-size: var(--omni-fs-base) !important;   /* 14 */
+  line-height: var(--lh-4, 22px) !important;
+}
+
+/* 段落/列表节奏: 段间距 12px，列表项 8px */
+.omni-route-viewport .markdown p {
+  margin: var(--omni-space-2) 0 !important;
+}
+.omni-route-viewport .markdown ul > li,
+.omni-route-viewport .markdown ol > li {
+  margin-top: var(--omni-space-1) !important;
+  margin-bottom: var(--omni-space-1) !important;
+}
+
+/* ============================== 代码块 ============================== */
+/* [CHAT-MATERIAL-V2] 原生 pre 保持深色高对比；若 pre 只是 CodeBlock 的
+ * ReactMarkdown 外壳，则由下面的结构选择器接管，避免双层边框/内距。 */
+.omni-route-viewport .message-content pre:not(:has(> div > div > code.hljs)),
+.omni-route-viewport .markdown pre:not(:has(> div > div > code.hljs)),
+.omni-route-viewport .code-analyze-block pre:not(:has(> div > div > code.hljs)) {
+  border-radius: var(--omni-radius-card, 12px) !important;
+  border: 1px solid var(--omni-border-subtle, rgba(255, 255, 255, 0.07)) !important;
+  background: #0b0f16 !important;
+  padding: var(--omni-space-3) !important;
+  font-size: var(--omni-fs-sm) !important;
+  line-height: var(--lh-3, 20px) !important;
+  color: #d7e5f5 !important;
+  box-shadow: none !important;
+  margin: var(--omni-space-3) 0 !important;
+  overflow: auto !important;
+  scrollbar-color: rgba(151, 180, 211, 0.26) transparent !important;
+}
+
+.omni-route-viewport :is(.message-content, .markdown, .code-analyze-block)
+  pre:has(> div > div > code.hljs) {
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+}
+
+.omni-route-viewport .message-content pre code,
+.omni-route-viewport .markdown pre code {
+  font-size: var(--omni-fs-sm) !important;
+  line-height: var(--lh-3, 20px) !important;
+}
+
+/* LibreChat CodeBlock 真身：根 > CodeBar 包裹层 + 代码 body > code.hljs。
+ * 用直接子级和 :has 锚定结构，不依赖 Tailwind 类串顺序。 */
+.omni-route-viewport :is(.message-content, .markdown)
+  div.relative.w-full.overflow-hidden:has(> div > code.hljs) {
+  margin: var(--omni-space-3) 0 !important;
+  border: 1px solid var(--omni-border-subtle, rgba(255, 255, 255, 0.07)) !important;
+  border-radius: var(--omni-radius-card, 12px) !important;
+  background: #0b0f16 !important;
+  box-shadow: none !important;
+  isolation: isolate !important;
+}
+
+/* 顶部语言标签条：保留原语言图标与文字，只重做材质和层级。 */
+.omni-route-viewport :is(.message-content, .markdown)
+  div.relative.w-full.overflow-hidden:has(> div > code.hljs)
+  > div:first-child > div:first-child {
+  min-height: 36px !important;
+  padding: var(--omni-space-half, 4px) var(--omni-space-2) !important;
+  background: rgba(255, 255, 255, 0.03) !important;
+  border-bottom: 1px solid var(--omni-border-subtle, rgba(255, 255, 255, 0.07)) !important;
+  color: #a9bdd2 !important;
+}
+
+.omni-route-viewport :is(.message-content, .markdown)
+  div.relative.w-full.overflow-hidden:has(> div > code.hljs)
+  > div:first-child > div:first-child > span:first-child {
+  color: #bfd0e2 !important;
+  font-size: var(--omni-fs-meta) !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+}
+
+.omni-route-viewport :is(.message-content, .markdown)
+  div.relative.w-full.overflow-hidden:has(> div > code.hljs)
+  > div:first-child > div:first-child > span:first-child svg {
+  color: rgb(var(--accent-primary, 91 140 255) / 0.9) !important;
+}
+
+.omni-route-viewport :is(.message-content, .markdown)
+  div.relative.w-full.overflow-hidden:has(> div > code.hljs)
+  > div:has(> code.hljs) {
+  padding: var(--omni-space-3) !important;
+  background: #0b0f16 !important;
+}
+
+.omni-route-viewport :is(.message-content, .markdown)
+  div.relative.w-full.overflow-hidden:has(> div > code.hljs) code.hljs {
+  padding: 0 !important;
+  background: transparent !important;
+  font-size: var(--omni-fs-sm) !important;
+  line-height: var(--lh-3, 20px) !important;
+  color: #d7e5f5 !important;
+}
+
+/* 行内代码: 与块级代码拉开材质层级，保留 6px 小圆角。 */
+.omni-route-viewport .markdown :where(code):not(pre code),
+.omni-route-viewport .message-content :where(code):not(pre code) {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid var(--omni-border-subtle, rgba(255, 255, 255, 0.07)) !important;
+  border-radius: var(--omni-radius-control, 8px) !important;
+  padding: 0 var(--omni-space-half) !important;
+  font-size: var(--omni-fs-sm) !important;
+  color: rgb(var(--text-primary)) !important;
+}
+
+/* ============================== 思考块 ============================== */
+/* 同一个玻璃容器包住标题与展开正文；展开高度仍由原 expandRef 计算。 */
+.omni-route-viewport .message-render [class~='group/thinking-container'] {
+  margin: var(--omni-space-1) 0 var(--omni-space-3) !important;
+  padding: var(--omni-space-half) var(--omni-space-2) var(--omni-space-2) !important;
+  background: #10151f !important;
+  border: 1px solid var(--omni-border-subtle, rgba(255, 255, 255, 0.07)) !important;
+  border-radius: var(--omni-radius-card, 12px) !important;
+  -webkit-box-shadow: none !important;
+}
+
+.omni-route-viewport .message-render [class~='group/thinking-container'] > div:first-child {
+  margin-bottom: 0 !important;
+  padding: var(--omni-space-1) 0 !important;
+}
+
+.omni-route-viewport .message-render
+  :is([class~='group/thinking-container'], [class~='group/reasoning-compact'])
+  [class~='bg-surface-secondary']:has(> p[class~='whitespace-pre-wrap']) {
+  padding: var(--omni-space-2) var(--omni-space-3) var(--omni-space-5) !important;
+  background: #0d1219 !important;
+  border: 1px solid var(--omni-border-subtle, rgba(255, 255, 255, 0.07)) !important;
+  border-left: 2px solid rgb(var(--accent-primary, 91 140 255) / 0.55) !important;
+  border-radius: var(--omni-radius-control, 8px) !important;
+  box-shadow: none !important;
+  color: rgb(var(--text-secondary)) !important;
+}
+
+/* ============================== 流式光标 / 等待点 ============================== */
+@keyframes omni-stream-caret {
+  0%, 100% { opacity: 0.36; }
+  50% { opacity: 1; }
+}
+
+@keyframes omni-thinking-breathe {
+  0%, 100% { opacity: 0.46; transform: scale(0.86); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+/* 细竖线替代粗圆点；只驱动 opacity，流式高频更新时不触发布局。 */
+.omni-route-viewport .message-content.result-streaming
+  > :not(ol):not(ul):not(pre):last-child::after,
+.omni-route-viewport .message-content.result-streaming > pre:last-child code::after,
+.omni-route-viewport .message-content.result-streaming
+  > :is(ul, ol):last-child > li:last-child:not(:has(> :is(ul, ol, pre)))::after {
+  content: '' !important;
+  display: inline-block !important;
+  width: 2px !important;
+  height: 1.06em !important;
+  min-height: 12px !important;
+  margin-left: var(--omni-space-half) !important;
+  border-radius: var(--omni-radius-pill, 999px) !important;
+  background: rgb(var(--accent-primary, 91 140 255)) !important;
+  box-shadow: none !important;
+  vertical-align: -0.14em !important;
+  animation: omni-stream-caret 1.2s ease-in-out infinite !important;
+}
+
+main[role='main'] .message-content.submitting .result-thinking:empty:last-child::after {
+  width: 8px !important;
+  height: 8px !important;
+  top: -8px !important;
+  background: rgb(var(--accent-primary, 91 140 255)) !important;
+  box-shadow: none !important;
+  animation: omni-thinking-breathe 1.4s ease-in-out infinite !important;
+}
+
+/* ============================== 输入框 Composer ============================== */
+/* 容器: 8px 圆角 + 1px subtle + 卡片级影 + 聚焦双环 */
+.omni-route-viewport [data-testid='composer-surface'] {
+  border-radius: var(--omni-radius-control, 8px) !important;
+  border-color: var(--omni-border-subtle, rgba(255, 255, 255, 0.07)) !important;
+  box-shadow: var(--omni-shadow-md) !important;
+  padding: var(--omni-space-1) !important;
+  transition: box-shadow var(--omni-dur-3) var(--omni-ease),
+    border-color var(--omni-dur-3) var(--omni-ease) !important;
+}
+
+.omni-route-viewport [data-testid='composer-surface']:focus-within {
+  border-color: rgb(var(--accent-primary)) !important;
+  box-shadow: var(--omni-glow) !important;
+}
+
+/* 文本域: 14px 字号 + 22 行高 + 内距 */
+.omni-route-viewport .omni-native-composer,
+.omni-route-viewport textarea {
+  font-size: var(--omni-fs-base) !important;    /* 14 */
+  line-height: var(--lh-4, 22px) !important;
+  padding: var(--omni-space-1) var(--omni-space-2) !important;
+  color: rgb(var(--text-primary)) !important;
+}
+
+.omni-route-viewport textarea::placeholder {
+  color: rgb(var(--text-muted)) !important;
+  opacity: 1 !important;
+}
+
+/* ============================== 发送按钮 Send ============================== */
+.omni-route-viewport [data-testid='send-button'],
+.omni-route-viewport .bg-surface-submit {
+  /* [UI-FINAL] 位移/辉光表演退场；hover 提亮交给 primary 态令牌 */
+  border-radius: var(--omni-radius-control, 8px) !important;
+  transition: background-color var(--omni-dur-2) var(--omni-ease) !important;
+  box-shadow: none !important;
+}
+
+/* ============================== 消息操作工具栏（13 · 阶梯第 3 级）============================== */
+.omni-route-viewport [data-testid='message-actions'] {
+  display: flex !important;
+  gap: var(--omni-space-1) !important;                  /* 8 */
+  margin-top: var(--omni-space-1) !important;           /* 8 */
+  opacity: 0;
+  transition: opacity var(--omni-dur-2) var(--omni-ease) !important;
+}
+
+/* hover / 键盘聚焦时淡入工具栏 (与 LibreChat 默认行为一致，仅加过渡) */
+.omni-route-viewport .message-render:hover [data-testid='message-actions'],
+.omni-route-viewport .message-render:focus-within [data-testid='message-actions'] {
+  opacity: 1 !important;
+}
+
+.omni-route-viewport [data-testid='message-actions'] button {
+  /* [UI-FINAL] ghost 态：透明底透明边，hover 才见微底色 */
+  background-color: transparent !important;
+  border-color: transparent !important;
+  border-radius: var(--omni-radius-control, 8px) !important;
+  padding: var(--omni-space-1) !important;              /* 6px -> 8px，图标按钮点击区达标 */
+  font-size: var(--omni-fs-sm) !important;              /* 13，工具栏不吃 14 正文 */
+  line-height: var(--lh-3, 20px) !important;
+  color: rgb(var(--text-secondary)) !important;
+  transition: background-color var(--omni-dur-1) var(--omni-ease),
+    color var(--omni-dur-1) var(--omni-ease),
+    transform var(--omni-dur-1) var(--omni-ease) !important;
+}
+
+.omni-route-viewport [data-testid='message-actions'] button:hover {
+  background: rgb(var(--surface-hover)) !important;
+  color: rgb(var(--text-primary)) !important;
+}
+
+.omni-route-viewport [data-testid='message-actions'] button:active {
+  transform: scale(0.92) !important;
+}
+
+/* ============================== 入场动效关键帧 ============================== */
+@keyframes omni-msg-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 尊重系统"减少动态效果"偏好 */
+@media (prefers-reduced-motion: reduce) {
+  .omni-route-viewport .message-render {
+    animation: none !important;
+  }
+  .omni-route-viewport [data-testid='composer-surface'],
+  .omni-route-viewport [data-testid='send-button'],
+  .omni-route-viewport .bg-surface-submit,
+  .omni-route-viewport [data-testid='message-actions'],
+  .omni-route-viewport [class~='group/thinking-container'],
+  .omni-route-viewport .agent-turn [data-testid='message-body'],
+  .omni-route-viewport .user-turn [data-testid='message-body'] {
+    transition: none !important;
+  }
+  .omni-route-viewport .message-content.result-streaming
+    > :not(ol):not(ul):not(pre):last-child::after,
+  .omni-route-viewport .message-content.result-streaming > pre:last-child code::after,
+  .omni-route-viewport .message-content.result-streaming
+    > :is(ul, ol):last-child > li:last-child:not(:has(> :is(ul, ol, pre)))::after {
+    animation: none !important;
+    opacity: 0.88 !important;
+  }
+  main[role='main'] .message-content.submitting .result-thinking:empty:last-child::after {
+    animation: none !important;
+    opacity: 0.88 !important;
+  }
+}
+
+/* =============================================================================
+ * G46 · 聊天主区越界收口（字号 36 / padding 6·10·60 / 时长 150·200）
+ * -----------------------------------------------------------------------------
+ * 口径：G42 真机实测 → G46 同口径复测（同一个 headless 采集器，前后可比）。
+ * 只改数值与令牌引用，不动 DOM、不动 React 源码、不动 index.html。
+ * 令牌真源 omni-craft-system.css：--fs-6 20 / --lh-6 28 / --space-1..6 / --dur-1..4。
+ *
+ * ⚠ 作用域：一律写 main[role="main"]，不写 .omni-route-viewport ——
+ *   实测 .omni-route-viewport 同时包住 sidebar 和 main（vp.contains(aside)=true），
+ *   用它当前缀会把侧栏这个"标杆块"一起改掉。本轮只允许动聊天主区。
+ * ========================================================================== */
+
+/* —— ① 字号：空态问候语 text-4xl(36) 越 6 级尺度上限 ——
+ *   判定：36 只出现在空会话问候语一处（含逐字动画 span）。它没有独立版式职责
+ *   （不是封面/首屏 display 标题，只是欢迎语 + 逐字淡入），所以不扩尺度、直接
+ *   归并到阶梯最高级 20（--fs-6）。逐字 span 是 .split-parent 的子节点、字号靠
+ *   继承，必须连 span 一起压，否则 22 个 span 仍会报 36。 */
+main[role="main"] .split-parent,
+main[role="main"] .split-parent span {
+  font-size: var(--fs-6) !important;
+  line-height: var(--lh-6) !important;
+}
+
+/* —— ② 间距：6 / 10 / 60 归到 4 / 8 / 32 ——
+ *   .pr-2.5.pt-1.5（10 / 6）      → 8 / 4
+ *   .scrollbar-gutter-spacer 右 10 → 8
+ *   button.size-theme-control p-theme-compact(6) → 4
+ *   md:px-[60px] 底部横幅左右 60   → 32（布局留白，落标尺最高档）
+ *   注：pb-16(64) 与 hero margin 112 都是 4 的倍数，按任务口径属合规布局留白，不动。 */
+main[role="main"] [class~="pr-2.5"][class~="pt-1.5"] {
+  padding-top: var(--space-1) !important;
+  padding-right: var(--space-2) !important;
+}
+main[role="main"] [class~="scrollbar-gutter-spacer"] {
+  padding-right: var(--space-2) !important;
+}
+main[role="main"] button[class~="size-theme-control"] {
+  padding: var(--space-1) !important;
+}
+main[role="main"] [class*="px-[60px]"] {
+  padding-left: var(--space-6) !important;
+  padding-right: var(--space-6) !important;
+}
+
+/* —— ③ 时长：150 / 200 归到 --dur-*（三档 150 / 250 / 400）——
+ *   Tailwind 的 transition / transition-all 默认 150ms，duration-200 是显式 200ms。
+ *   悬停与淡入（行 hover、表单展开、按钮底色）落 150（--dur-2）；
+ *   逐字淡入是微交互，落 150（--dur-1）。已有 250 的表面态不动。 */
+main[role="main"] [class~="transition"],
+main[role="main"] [class~="transition-all"],
+main[role="main"] [class*="duration-200"],
+main[role="main"] .omni-native-composer {
+  transition-duration: var(--dur-2) !important;
+}
+main[role="main"] [class~="transition-opacity"] {
+  transition-duration: var(--dur-1) !important;
+}
+/* 例外：Composer 输入表面是 G31 的 240ms「表面态」档（阴影 + 描边），
+ * 它自身带 transition 类，会被上面的 180 收口误伤，这里显式还原。 */
+main[role="main"] [data-testid='composer-surface'] {
+  transition-duration: var(--dur-3) !important;
+}
+
+/* —— ④ 行高成对：输入框内的模型选择器是 14px/20px（Tailwind text-sm 的紧凑 leading），
+ *   同字号在这一块出现两套行高（22/20）；控件高度由 h-10 固定，改行高不改变版位。 */
+main[role="main"] [data-testid='model-selector-button'],
+main[role="main"] [data-testid='model-selector-button'] span {
+  line-height: var(--lh-4) !important;
+}
+
+
+/* ── 去掉消息分支切换器（1/2、2/2）──────────────────────────────────────
+   LibreChat 的 Zx 组件：同一消息存在多个版本时渲染
+   <nav aria-label=...><button prev><span role="status" aria-live="polite"
+   aria-atomic="true">1 / 2</span><button next></nav>。
+   持续执行模式的续轮会被算成「同一消息的多个版本」，于是每条回复下面都挂一个
+   版本号，看起来像「回退会覆盖历史」。我们一条消息就是一条，不做版本切换，
+   直接隐藏这个导航；消息本体与历史记录完全不动。 */
+nav:has(> span[role="status"][aria-live="polite"][aria-atomic="true"]) {
+  display: none !important;
+}
+
+/* ===================== [GLASS-GRADIENT] 输入表面 =====================
+ * 消息与代码材质统一由 [CHAT-MATERIAL-V2] 负责；本层只保留 Composer。 */
+.omni-route-viewport [data-testid='composer-surface'] {
+  /* [UI-FINAL] 输入表面 surface-2 实底 + strong 描边（常驻焦点区，强调一档） */
+  background: #151b26 !important;
+  border-color: var(--omni-border-strong, rgba(255, 255, 255, 0.15)) !important;
+  -webkit-box-shadow: var(--omni-shadow-md) !important;
+}
+.omni-route-viewport [data-testid='composer-surface']:focus-within {
+  border-color: rgb(var(--accent-primary, 91 140 255)) !important;
+  box-shadow: var(--omni-glow) !important;
+}
+.omni-route-viewport [data-testid='send-button'],
+.omni-route-viewport .bg-surface-submit {
+  /* [UI-FINAL] primary 态：单一 accent 实底 + 深墨前景。
+   * 底色与 hover 提亮由 system ⑩ 的 --omni-accent-solid(-hover) 统一接管。 */
+  background: var(--omni-accent-solid, rgb(91 140 255)) !important;
+  border-color: transparent !important;
+  color: #07131d !important;
+  box-shadow: none !important;
+}
+
+/* ===================== [IA-RHYTHM] 阅读列与消息/输入层级 =====================
+ * 只调排版、间距与控件几何；材质、DOM、虚拟列表和 JS 均不在本层。
+ * 同一阅读列贯穿消息与 Composer，避免正文、输入框两套中心线。 */
+main[role="main"] .message-render,
+main[role="main"] form:has([data-testid='composer-surface']) {
+  max-width: var(--omni-content-measure, 840px) !important;
+}
+
+/* 首屏 24px 容器留白 + 16px 消息内距会叠成 40px；改成 8+24=32。
+ * 每条消息 24/8，与下一条合成 32px 的轮次间隔，正文不再首尾相顶。 */
+main[role="main"] .flex.flex-col.pb-9.pt-14 {
+  padding-top: var(--space-2) !important;
+  padding-bottom: var(--space-6) !important;
+}
+main[role="main"] .message-render {
+  padding: var(--space-5) var(--space-2) var(--space-2) !important;
+}
+main[role="main"] .message-render:last-child {
+  padding-bottom: var(--space-4) !important;
+}
+
+/* 主回答与输入使用 16/28；工具、元信息和代码仍走 12/13 次级阶梯。 */
+main[role="main"] .markdown,
+main[role="main"] .message-content,
+main[role="main"] .message-editor-text,
+main[role="main"] .omni-native-composer,
+main[role="main"] textarea {
+  font-size: var(--omni-reading-size, var(--fs-5)) !important;
+  line-height: var(--omni-reading-leading, var(--lh-6)) !important;
+}
+main[role="main"] .agent-turn [data-testid='message-body'] {
+  padding: var(--space-4) var(--space-5) !important;
+}
+main[role="main"] .user-turn [data-testid='message-body'] {
+  width: fit-content !important;
+  max-width: min(82%, 68ch) !important;
+  overflow-wrap: anywhere !important;
+}
+
+/* 段落是基本语义块：同段 0、段间 16、块级元素上下 16，去掉双向 margin 叠加。 */
+main[role="main"] .markdown p {
+  margin-block: 0 !important;
+}
+main[role="main"] .markdown p + p {
+  margin-top: var(--space-4) !important;
+}
+main[role="main"] .markdown > :is(ul, ol, pre, blockquote) {
+  margin-block: var(--space-4) !important;
+}
+main[role="main"] .markdown > :first-child {
+  margin-top: 0 !important;
+}
+main[role="main"] .markdown > :last-child {
+  margin-bottom: 0 !important;
+}
+main[role="main"] .message-render :is(h2, time, [role='status']) {
+  color: rgb(var(--text-secondary)) !important;
+}
+
+/* Composer 内部使用 12px 横向安全区；占位文字比正文弱一级但仍清晰。 */
+main[role="main"] [data-testid='composer-surface'] {
+  padding: var(--space-2) var(--space-3) !important;
+}
+main[role="main"] textarea::placeholder {
+  color: rgb(var(--text-secondary)) !important;
+  opacity: 0.82 !important;
+}
+
+/* 发送是唯一主动作：40px 命中面；禁用时去光晕并落全站统一禁用档 0.5（原 0.32 越档）。 */
+main[role="main"] [data-testid='send-button'] {
+  flex: 0 0 40px !important;
+  inline-size: 40px !important;
+  block-size: 40px !important;
+}
+main[role="main"] [data-testid='send-button']:disabled {
+  opacity: 0.5 !important;
+  box-shadow: none !important;
+}
+main[role="main"] [data-testid='message-actions'] {
+  margin-top: var(--space-3) !important;
+}
+
+@media (max-width: 767px) {
+  main[role="main"] .message-render {
+    padding-top: var(--space-4) !important;
+    padding-bottom: var(--space-1) !important;
+  }
+  main[role="main"] .user-turn [data-testid='message-body'] {
+    max-width: 92% !important;
+  }
+  main[role="main"] .agent-turn [data-testid='message-body'] {
+    padding: var(--space-4) !important;
+  }
+}
+
+
+/* [PERF-CHAT] 消息气泡禁用 backdrop-filter 的原因：
+   每条消息一个合成层，一屏几十条 → 滚动时每帧重算几十次高斯模糊，Electron 直接掉帧。
+   改成半透明实色 + 细描边，视觉层次保留，GPU 开销归零。
+   毛玻璃只保留给固定数量的表面：侧边栏 / 顶栏 / 弹窗 / 模型选择器。 */
+.omni-route-viewport .message-render [data-testid='message-body'],
+.omni-route-viewport .message-render [class~='group/thinking-container'] {
+  contain: layout style paint;
+}
+
+/* =============================================================================
+ * [CHAT-EXP 2026-11-07] 消息流体感深度优化层（追加式增强：零删除，零改存量）
+ * -----------------------------------------------------------------------------
+ * 覆盖八个体感缺口：气泡方向感、流式呼吸辉光、代码块滚动条与复制按钮、
+ * 表格与引用块暗色适配、链接与强调、hover 操作浮出、超长内容折叠锚点、
+ * 状态位与 spinner。全部 main[role="main"] 前缀（G46 作用域口径，不误伤侧栏），
+ * 且级联位于文件末尾，同特异性必胜；与存量冲突处一律以更高特异性覆盖。
+ * ========================================================================== */
+
+/* ① [CHAT-EXP 2026-11-07] 气泡方向感：AI 泡左下角收 6px 小圆角，与用户泡
+ *    右下小圆角互为镜像。背景、描边、圆角指向三重区分，扫一眼即知谁在说话。 */
+main[role="main"] .message-render .agent-turn [data-testid='message-body'] {
+  border-radius: var(--omni-radius, 14px) var(--omni-radius, 14px)
+    var(--omni-radius-xs, 6px) var(--omni-radius, 14px) !important;
+}
+
+/* ② [CHAT-EXP 2026-11-07] 流式输出态：AI 生成中给气泡叠一圈呼吸辉光。
+ *    用伪元素承载，不碰存量的边框与阴影声明；动画只驱动 opacity 与自身
+ *    box-shadow，流式高频更新时不触发布局；.result-streaming 移除即消失。 */
+main[role="main"] .message-render .agent-turn [data-testid='message-body']:has(.result-streaming) {
+  position: relative !important;
+}
+
+main[role="main"] .message-render .agent-turn [data-testid='message-body']:has(.result-streaming)::after {
+  content: '' !important;
+  position: absolute !important;
+  inset: 0 !important;
+  border-radius: inherit !important;
+  pointer-events: none !important;
+  z-index: 1 !important;
+  animation: omni-stream-edge 1.6s ease-in-out infinite !important;
+}
+
+@keyframes omni-stream-edge {
+  0%, 100% {
+    opacity: 0.16;
+    box-shadow: inset 0 0 0 1px rgb(var(--accent-primary, 91 140 255) / 0.3),
+      inset 0 0 16px rgb(var(--accent-primary, 91 140 255) / 0.08);
+  }
+  50% {
+    opacity: 0.72;
+    box-shadow: inset 0 0 0 1px rgb(var(--accent-primary, 91 140 255) / 0.44),
+      inset 0 0 26px rgb(var(--accent-primary, 91 140 255) / 0.16);
+  }
+}
+
+/* ③ [CHAT-EXP 2026-11-07] 代码块滚动条：胶囊 thumb + 透明轨道 + hover 提亮，
+ *    覆盖原生 pre 与 CodeBlock 代码 body 两个滚动容器。 */
+main[role="main"] .message-render pre::-webkit-scrollbar,
+main[role="main"] .code-analyze-block pre::-webkit-scrollbar,
+main[role="main"] .message-render div.relative.w-full.overflow-hidden:has(> div > code.hljs)
+  > div:has(> code.hljs)::-webkit-scrollbar {
+  width: 10px !important;
+  height: 10px !important;
+}
+
+main[role="main"] .message-render pre::-webkit-scrollbar-thumb,
+main[role="main"] .code-analyze-block pre::-webkit-scrollbar-thumb,
+main[role="main"] .message-render div.relative.w-full.overflow-hidden:has(> div > code.hljs)
+  > div:has(> code.hljs)::-webkit-scrollbar-thumb {
+  background: rgba(151, 180, 211, 0.24) !important;
+  border-radius: 999px !important;
+  border: 2px solid transparent !important;
+  background-clip: content-box !important;
+}
+
+main[role="main"] .message-render pre::-webkit-scrollbar-thumb:hover,
+main[role="main"] .code-analyze-block pre::-webkit-scrollbar-thumb:hover,
+main[role="main"] .message-render div.relative.w-full.overflow-hidden:has(> div > code.hljs)
+  > div:has(> code.hljs)::-webkit-scrollbar-thumb:hover {
+  background: rgba(151, 180, 211, 0.42) !important;
+  border: 2px solid transparent !important;
+  background-clip: content-box !important;
+}
+
+main[role="main"] .message-render pre::-webkit-scrollbar-track,
+main[role="main"] .code-analyze-block pre::-webkit-scrollbar-track,
+main[role="main"] .message-render pre::-webkit-scrollbar-corner,
+main[role="main"] .code-analyze-block pre::-webkit-scrollbar-corner,
+main[role="main"] .message-render div.relative.w-full.overflow-hidden:has(> div > code.hljs)
+  > div:has(> code.hljs)::-webkit-scrollbar-track,
+main[role="main"] .message-render div.relative.w-full.overflow-hidden:has(> div > code.hljs)
+  > div:has(> code.hljs)::-webkit-scrollbar-corner {
+  background: transparent !important;
+}
+
+/* ④ [CHAT-EXP 2026-11-07] CodeBar 复制按钮 hover 态：默认安静，hover 浮出
+ *    浅底 + 品牌青图标，配 120ms 跟手过渡，与消息操作按钮手感一致。 */
+main[role="main"] .message-render :is(.message-content, .markdown)
+  div.relative.w-full.overflow-hidden:has(> div > code.hljs)
+  > div:first-child button {
+  border-radius: var(--omni-radius-xs, 6px) !important;
+  transition: background-color var(--omni-dur-1) var(--omni-ease),
+    color var(--omni-dur-1) var(--omni-ease) !important;
+}
+
+main[role="main"] .message-render :is(.message-content, .markdown)
+  div.relative.w-full.overflow-hidden:has(> div > code.hljs)
+  > div:first-child button:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: rgb(var(--accent-primary, 91 140 255)) !important;
+}
+
+/* ⑤ [CHAT-EXP 2026-11-07] Markdown 表格暗色适配：块级横向滚动 + 表头分层 +
+ *    斑马纹 + 单线列分隔，宽表不再撑破消息卡。 */
+main[role="main"] .message-render .markdown table {
+  display: block !important;
+  width: max-content !important;
+  max-width: 100% !important;
+  overflow-x: auto !important;
+  margin: var(--omni-space-3) 0 !important;
+  border: 1px solid var(--omni-border-subtle, rgba(255, 255, 255, 0.07)) !important;
+  border-radius: var(--omni-radius-control, 8px) !important;
+  background: #0b0f16 !important;
+  font-size: var(--omni-fs-sm) !important;
+  line-height: var(--lh-4, 22px) !important;
+  scrollbar-color: rgba(151, 180, 211, 0.26) transparent !important;
+}
+
+main[role="main"] .message-render .markdown :is(th, td) {
+  padding: var(--omni-space-1) var(--omni-space-2) !important;
+  border-bottom: 1px solid var(--omni-border-subtle, rgba(255, 255, 255, 0.07)) !important;
+  text-align: left !important;
+  vertical-align: top !important;
+  color: rgb(var(--text-primary)) !important;
+}
+
+main[role="main"] .message-render .markdown :is(td + td, th + th) {
+  border-left: 1px solid var(--omni-border-subtle, rgba(255, 255, 255, 0.07)) !important;
+}
+
+main[role="main"] .message-render .markdown thead th {
+  background: rgba(255, 255, 255, 0.04) !important;
+  color: rgb(var(--text-secondary)) !important;
+  font-weight: 600 !important;
+  border-bottom: 1px solid var(--omni-border-strong, rgba(255, 255, 255, 0.15)) !important;
+}
+
+main[role="main"] .message-render .markdown tbody tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.024) !important;
+}
+
+main[role="main"] .message-render .markdown tbody tr:last-child td {
+  border-bottom: 0 !important;
+}
+
+/* 用户泡内表格反色：teal 亮底上换深墨线条与浅底压暗，防止浅字浅线丢失对比度。 */
+main[role="main"] .message-render .user-turn [data-testid='message-body'] table {
+  background: rgba(4, 19, 30, 0.1) !important;
+  border-color: rgba(7, 19, 29, 0.2) !important;
+}
+
+main[role="main"] .message-render .user-turn [data-testid='message-body'] :is(th, td) {
+  color: #07131d !important;
+  border-bottom-color: rgba(7, 19, 29, 0.18) !important;
+}
+
+main[role="main"] .message-render .user-turn [data-testid='message-body'] :is(td + td, th + th) {
+  border-left-color: rgba(7, 19, 29, 0.14) !important;
+}
+
+main[role="main"] .message-render .user-turn [data-testid='message-body'] thead th {
+  background: rgba(4, 19, 30, 0.14) !important;
+  color: #07131d !important;
+  border-bottom-color: rgba(7, 19, 29, 0.24) !important;
+}
+
+main[role="main"] .message-render .user-turn [data-testid='message-body'] tbody tr:nth-child(even) {
+  background: rgba(4, 19, 30, 0.08) !important;
+}
+
+/* ⑥ [CHAT-EXP 2026-11-07] 引用块：左侧品牌青竖线 + 深底 + 右侧圆角，
+ *    与思考块的竖线视觉语言统一。 */
+main[role="main"] .message-render .markdown blockquote {
+  margin: var(--omni-space-3) 0 !important;
+  padding: var(--omni-space-1) var(--omni-space-3) !important;
+  border-left: 2px solid rgb(var(--accent-primary, 91 140 255) / 0.55) !important;
+  background: #0b0f16 !important;
+  border-radius: 0 var(--omni-radius-control, 8px) var(--omni-radius-control, 8px) 0 !important;
+  color: rgb(var(--text-secondary)) !important;
+}
+
+main[role="main"] .message-render .markdown blockquote p {
+  margin: var(--omni-space-half) 0 !important;
+}
+
+/* ⑦ [CHAT-EXP 2026-11-07] 分隔线：居中渐隐光线，替代默认生硬灰线。 */
+main[role="main"] .message-render .markdown hr {
+  border: 0 !important;
+  height: 1px !important;
+  margin: var(--omni-space-4) 0 !important;
+  background: var(--omni-border-subtle, rgba(255, 255, 255, 0.07)) !important;
+}
+
+/* ⑧ [CHAT-EXP 2026-11-07] 链接：accent 色 + 下划线透明渐入（hover 才显线），
+ *    颜色与下划线双通道 180ms 过渡，扫读时不被满屏下划线干扰。 */
+main[role="main"] .message-render .markdown a {
+  color: rgb(var(--accent-primary)) !important;
+  text-decoration-line: underline !important;
+  text-decoration-color: transparent !important;
+  text-decoration-thickness: 1px !important;
+  text-underline-offset: 3px !important;
+  transition: color var(--omni-dur-1) var(--omni-ease),
+    text-decoration-color var(--omni-dur-2) var(--omni-ease) !important;
+}
+
+main[role="main"] .message-render .markdown a:hover {
+  color: var(--omni-accent-solid-hover, #7aa5ff) !important;
+  text-decoration-color: rgb(var(--accent-primary, 91 140 255) / 0.55) !important;
+}
+
+/* ⑨ [CHAT-EXP 2026-11-07] strong：正文明确压 text-primary + 600 加粗，
+ *    暗底下 strong 一定比正文高半档。 */
+main[role="main"] .message-render .markdown strong {
+  color: rgb(var(--text-primary)) !important;
+  font-weight: 600 !important;
+}
+
+/* ⑩ [UI-FINAL 2026-11-08] 行内 code 的 accent 描边移除：与块级代码统一 subtle。 */
+
+/* ⑪ [CHAT-EXP 2026-11-07] 任务列表 checkbox：accent 填色 + 14px 对齐行高，
+ *    打勾状态不再是一团系统默认灰。 */
+main[role="main"] .message-render .markdown input[type='checkbox'] {
+  accent-color: rgb(var(--accent-primary)) !important;
+  width: 14px !important;
+  height: 14px !important;
+  flex: none !important;
+  vertical-align: -1px !important;
+}
+
+/* ⑫ [CHAT-EXP 2026-11-07] 消息 hover 操作浮出：默认下沉 3px 静默隐藏，
+ *    hover 时浮出归位；pointer-events 联动，杜绝"看不见但点得到"的误触。
+ *    opacity 显隐逻辑沿用存量规则，本层不重复声明。 */
+main[role="main"] .message-render [data-testid='message-actions'] {
+  transform: translateY(3px) !important;
+  pointer-events: none !important;
+  transition: opacity var(--omni-dur-2) var(--omni-ease),
+    transform var(--omni-dur-2) var(--omni-ease) !important;
+}
+
+main[role="main"] .message-render:hover [data-testid='message-actions'],
+main[role="main"] .message-render:focus-within [data-testid='message-actions'] {
+  transform: translateY(0) !important;
+  pointer-events: auto !important;
+}
+
+/* ⑬ [CHAT-EXP 2026-11-07] 超长内容折叠：上限 30em，hover 平滑展开；
+ *    底部渐隐条 + "展开全部"锚点只在真正出现滚动时浮现（scroll-driven
+ *    animation 判定：不可滚动则时间线不激活，锚点保持隐藏，短代码零误伤），
+ *    滚动 72px 后锚点自动退场让位于阅读，hover 时即刻隐去并展开。
+ *    流式生成中不折叠，长代码的进度光标保持可见。 */
+main[role="main"] .message-render :is(.message-content, .markdown)
+  pre:not(:has(> div > div > code.hljs)),
+main[role="main"] .code-analyze-block pre:not(:has(> div > div > code.hljs)) {
+  max-height: min(30em, 62vh) !important;
+  overscroll-behavior: contain !important;
+}
+
+main[role="main"] .message-render :is(.message-content, .markdown)
+  pre:not(:has(> div > div > code.hljs)):hover,
+main[role="main"] .code-analyze-block pre:not(:has(> div > div > code.hljs)):hover {
+  max-height: min(64em, 82vh) !important;
+}
+
+/* 原生 pre 的渐隐锚点：sticky 负 margin 手法贴滚动视口底，pointer-events 穿透，
+ * 永不拦截选中文本。 */
+main[role="main"] .message-render :is(.message-content, .markdown)
+  pre:not(:has(> div > div > code.hljs))::after,
+main[role="main"] .code-analyze-block pre:not(:has(> div > div > code.hljs))::after {
+  content: '⤵ 展开全部' !important;
+  display: flex !important;
+  align-items: flex-end !important;
+  justify-content: flex-end !important;
+  position: sticky !important;
+  bottom: 0 !important;
+  height: 44px !important;
+  margin-top: -44px !important;
+  padding: 0 var(--omni-space-2) var(--omni-space-1) 0 !important;
+  border-radius: 0 0 var(--omni-radius, 14px) var(--omni-radius, 14px) !important;
+  background: linear-gradient(180deg, transparent, rgba(8, 13, 21, 0.92) 72%) !important;
+  color: #a9bdd2 !important;
+  font-size: var(--omni-fs-meta) !important;
+  line-height: var(--lh-2, 16px) !important;
+  pointer-events: none !important;
+  opacity: 0;
+}
+
+main[role="main"] .message-render :is(.message-content, .markdown)
+  pre:not(:has(> div > div > code.hljs)):hover::after,
+main[role="main"] .code-analyze-block pre:not(:has(> div > div > code.hljs)):hover::after {
+  opacity: 0 !important;
+}
+
+/* CodeBlock 外壳折叠：外壳限高 + flex 纵排，代码 body 成为滚动容器，
+ * 语言标签条因此天然固定不被滚走；渐隐条与锚点挂在不滚动的外壳上。 */
+main[role="main"] .message-render :is(.message-content, .markdown)
+  div.relative.w-full.overflow-hidden:has(> div > code.hljs) {
+  display: flex !important;
+  flex-direction: column !important;
+  max-height: min(30em, 62vh) !important;
+}
+
+main[role="main"] .message-render :is(.message-content, .markdown)
+  div.relative.w-full.overflow-hidden:has(> div > code.hljs):hover {
+  max-height: min(64em, 82vh) !important;
+}
+
+main[role="main"] .message-render :is(.message-content, .markdown)
+  div.relative.w-full.overflow-hidden:has(> div > code.hljs) > div:has(> code.hljs) {
+  min-height: 0 !important;
+  overflow: auto !important;
+  overscroll-behavior: contain !important;
+  scrollbar-color: rgba(151, 180, 211, 0.26) transparent !important;
+}
+
+main[role="main"] .message-render :is(.message-content, .markdown)
+  div.relative.w-full.overflow-hidden:has(> div > code.hljs)::before {
+  content: '' !important;
+  position: absolute !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  height: 44px !important;
+  background: linear-gradient(180deg, transparent, rgba(8, 13, 21, 0.92) 72%) !important;
+  pointer-events: none !important;
+  z-index: 2 !important;
+  opacity: 0;
+}
+
+main[role="main"] .message-render :is(.message-content, .markdown)
+  div.relative.w-full.overflow-hidden:has(> div > code.hljs)::after {
+  content: '⤵ 展开全部' !important;
+  position: absolute !important;
+  right: var(--omni-space-2) !important;
+  bottom: var(--omni-space-2) !important;
+  padding: var(--omni-space-half, 4px) var(--omni-space-2) !important;
+  border-radius: var(--omni-radius-pill, 999px) !important;
+  background: #0b0f16 !important;
+  border: 1px solid var(--omni-border-strong, rgba(255, 255, 255, 0.15)) !important;
+  color: #a9bdd2 !important;
+  font-size: var(--omni-fs-meta) !important;
+  line-height: var(--lh-2, 16px) !important;
+  white-space: nowrap !important;
+  pointer-events: none !important;
+  z-index: 2 !important;
+  opacity: 0;
+}
+
+main[role="main"] .message-render :is(.message-content, .markdown)
+  div.relative.w-full.overflow-hidden:has(> div > code.hljs):hover::before,
+main[role="main"] .message-render :is(.message-content, .markdown)
+  div.relative.w-full.overflow-hidden:has(> div > code.hljs):hover::after {
+  opacity: 0 !important;
+}
+
+/* 渐隐锚点的浮现由滚动驱动：内容可滚时时间线激活，滚动 72px 内从 0 渐到 1。
+ * 旧引擎无此能力时 @supports 隔离，锚点恒隐（渐进增强，不炸不闪）。 */
+@supports (animation-timeline: scroll()) {
+  main[role="main"] .message-render :is(.message-content, .markdown)
+    pre:not(:has(> div > div > code.hljs))::after,
+  main[role="main"] .code-analyze-block pre:not(:has(> div > div > code.hljs))::after,
+  main[role="main"] .message-render :is(.message-content, .markdown)
+    div.relative.w-full.overflow-hidden:has(> div > code.hljs)::before,
+  main[role="main"] .message-render :is(.message-content, .markdown)
+    div.relative.w-full.overflow-hidden:has(> div > code.hljs)::after {
+    animation-name: omni-expand-hint !important;
+    animation-timing-function: linear !important;
+    animation-fill-mode: both !important;
+    animation-timeline: scroll(nearest block) !important;
+    animation-range: 0 72px !important;
+  }
+}
+
+@keyframes omni-expand-hint {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* 流式生成中不折叠、不显示锚点：长代码的呼吸光标必须始终可见。 */
+main[role="main"] .message-render .message-content.result-streaming
+  pre:not(:has(> div > div > code.hljs)),
+main[role="main"] .message-render .message-content.result-streaming
+  div.relative.w-full.overflow-hidden:has(> div > code.hljs) {
+  max-height: none !important;
+}
+
+main[role="main"] .message-render .message-content.result-streaming
+  pre:not(:has(> div > div > code.hljs))::after,
+main[role="main"] .message-render .message-content.result-streaming
+  div.relative.w-full.overflow-hidden:has(> div > code.hljs)::before,
+main[role="main"] .message-render .message-content.result-streaming
+  div.relative.w-full.overflow-hidden:has(> div > code.hljs)::after {
+  display: none !important;
+}
+
+/* ⑭ [CHAT-EXP 2026-11-07] 状态位与 spinner：时间戳与状态文本用等宽数字，
+ *    秒级刷新不再左右跳动；生成中 spinner 固定 16px 与元信息行对齐；
+ *    失败与错误文案统一为可读的暖红。 */
+main[role="main"] .message-render :is(time, [role='status']) {
+  font-variant-numeric: tabular-nums !important;
+}
+
+main[role="main"] .message-render [class*='animate-spin'] {
+  width: 16px !important;
+  height: 16px !important;
+  flex: none !important;
+}
+
+main[role="main"] .message-render [class*='text-red'] {
+  color: rgb(248 113 113) !important;
+}
+
+/* ⑮ [CHAT-EXP 2026-11-07] 减少动态效果偏好：呼吸辉光退化为静态微光。
+ *    折叠锚点的 scroll-driven 浮现由用户滚动驱动，不属于自动运动，保留。 */
+@media (prefers-reduced-motion: reduce) {
+  main[role="main"] .message-render .agent-turn [data-testid='message-body']:has(.result-streaming)::after {
+    animation: none !important;
+    opacity: 0.38 !important;
+    box-shadow: inset 0 0 0 1px rgb(var(--accent-primary, 91 140 255) / 0.3) !important;
+  }
+}
+
+/* ============================================================================
+ * [FACE-FIX 2026-11-07] 前脸修复 · 顶栏毛玻璃化 + 欢迎屏层级/密度
+ * ----------------------------------------------------------------------------
+ * 实测锚点（assets/index.Bx_aOP0E.js）：
+ *   粘头   div.sticky.top-0.z-20.flex.items-center.bg-presentation.px-2.py-1
+ *   顶栏   div.flex.h-[52px].shrink-0.items-center.gap-2.border-b.px-2.md:px-4
+ * 底色白的问题已由 system 的 --presentation 令牌补全修掉；本段在其上做
+ * 毛玻璃（backdrop-blur + 半透明底 + 底缘 1px 细描边）。
+ * :not(:has(main)) 排除 system.css 已透明化的主画布容器，避免双重着色。
+ * ========================================================================== */
+html :is(header, div)[class*="sticky"][class*="top-0"][class*="bg-presentation"]:not(:has(main[role="main"])) {
+  /* [UI-FINAL] 顶栏实底同画布基色 #0f131a，靠 1px subtle 分界；
+   * 顺带清掉残缺的 `-webkit-` 声明行（无效语法）。 */
+  background-color: #0f131a !important;
+  border-bottom: 1px solid var(--omni-border-subtle, rgba(255, 255, 255, 0.07)) !important;
+}
+html div[class*="h-[52px]"][class*="border-b"] {
+  background-color: #0f131a !important;
+  border-bottom: 1px solid var(--omni-border-subtle, rgba(255, 255, 255, 0.07)) !important;
+}
+
+/* 顶栏降密度：横向内距 8 → 16（--space-4），内容不再贴边。 */
+html div[class*="h-[52px]"][class*="border-b"] {
+  padding-inline: var(--space-4, 16px) !important;
+}
+
+/* ---------------------------------------------------------------------------
+ * [FACE-FIX 2026-11-07] 欢迎屏（未登录/空会话同壳）：次要文字统一次级色，
+ * 降低对比噪音。gray-500/600 在暗底上分别是 ~4:1 / ~2.5:1，发闷发灰；
+ * 统一收到 --text-secondary（11.3:1），标题仍走 --text-primary 拉层级。
+ * 仅限 main 阅读区，不动侧栏与弹窗各自的既有指派。
+ * ------------------------------------------------------------------------- */
+html main[role="main"] :where([class*="text-gray-500"], [class*="text-gray-600"]) {
+  color: rgb(var(--text-secondary)) !important;
+}
+
+/* [UI-FINAL] 欢迎屏排印：大字收紧(-0.015em)+700，小字放宽(0.01em)+400——
+ * display 级字距节奏，主次呼吸一眼分层（收割者的「冷、直、稳」）。 */
+html main[role="main"] :where(h1, [class*="text-3xl"], [class*="text-2xl"]) {
+  color: rgb(var(--text-primary)) !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.015em !important;
+}
+html main[role="main"] :where(h1, [class*="text-3xl"], [class*="text-2xl"])
+  + :where(p, [class*="text-sm"], [class*="text-base"], [class*="text-text-secondary"]) {
+  color: rgb(var(--text-secondary)) !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.01em !important;
+}
+
+/* [UI-FINAL 2026-11-08] 空会话问候语（.split-parent 逐字动画容器，20px 档）：
+ * 与欢迎屏主标题同一排印层级——600 字重 + 收紧字距，配合 C19 的主副分层。 */
+main[role="main"] .split-parent {
+  font-weight: 600 !important;
+  letter-spacing: -0.01em !important;
+}
+/* =============================================================================
+ * omni-craft-chat-empty-state.patch.css — [UX-EMPTY 2026-11-08] 空态优化
+ * -----------------------------------------------------------------------------
+ * 套用方式：把本文件整段【追加】到 desktop/ui/omni-craft-chat.css 末尾
+ *          （该文件是 OVERRIDE ONLY 覆盖层，追加段天然在级联顺序最后生效）。
+ * 配套：desktop/ui/omni-hotkeys.js（本段为其中 #omni-welcome-hint 提供工艺化
+ *       视觉；布局基线已由 JS 内联自足，本段缺位时功能不残废只是朴素）。
+ *
+ * 实测锚点（assets 静态扫描实锤）：
+ *   侧栏空态   div[data-testid="convo-list-empty"]
+ *              （ProjectEditDialog.BpNk-IyK.js 内会话列表空分支：
+ *               flex flex-1 flex-col items-center justify-center gap-2 px-6
+ *               text-center 容器 + span.text-sm.text-text-secondary 文案）
+ *              注：com_ui_no_chats（"No chats yet"）在 zh-Hans locale 缺 key，
+ *              中文界面显示英文——LibreChat 上游 i18n 缺口，CSS 层不改文案只加引导。
+ *   欢迎速查条 #omni-welcome-hint（omni-hotkeys.js 注入 document.body，fixed，
+ *              不碰 React 托管树；仅 /c/new 或非会话路由且消息区无消息时可见）
+ * ========================================================================== */
+
+/* ── ① 侧栏空态：引导语 ────────────────────────────────────────────────────
+ * 原生空态只有一行 "No chats yet"，无任何下一步指引。补一行快捷键引导：
+ * 容器 gap 2→12（8pt 网格 --omni-space-2），引导语次级色、元信息字号。 */
+div[data-testid='convo-list-empty'] {
+  gap: var(--omni-space-2, 12px) !important;
+}
+
+/* 原生空态文案降为三级色（引导语才是主角） */
+div[data-testid='convo-list-empty'] > span {
+  color: rgb(var(--text-tertiary)) !important;
+  font-size: var(--omni-fs-meta, 12px) !important;
+}
+
+/* 引导语：主行（快捷键胶囊样式 + 次级色文案） */
+div[data-testid='convo-list-empty']::after {
+  content: 'Ctrl+N 新建会话 · Ctrl+K 搜索';
+  display: block !important;
+  font-size: var(--omni-fs-meta, 12px) !important;
+  color: rgb(var(--text-secondary)) !important;
+  letter-spacing: 0.02em !important;
+  line-height: 1.6 !important;
+  padding: var(--omni-space-half, 4px) var(--omni-space-2, 12px) !important;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06)) !important;
+  border-radius: 999px !important;
+  background: rgb(var(--surface-secondary, 11 16 23)) !important;
+  white-space: nowrap !important;
+}
+
+/* ── ② 欢迎屏（空会话）速查条工艺化 ────────────────────────────────────────
+ * #omni-welcome-hint 结构（omni-hotkeys.js 注入）：
+ *   <div id="omni-welcome-hint"><kbd>Ctrl</kbd><i>+</i><kbd>K</kbd><span class="lbl">搜索会话</span>…</div>
+ * 视觉规则与侧栏引导语同构：kbd=药丸、lbl=次级色、sep=三级色间隔点。 */
+#omni-welcome-hint {
+  display: flex !important;
+  align-items: center !important;
+  gap: var(--omni-space-half, 4px) !important;
+  font-size: var(--omni-fs-meta, 12px) !important;
+  color: rgb(var(--text-tertiary)) !important;
+}
+/* hidden 属性压制：display:flex 会盖掉 [hidden] 的 UA 样式（JS 关闭态必须消失） */
+#omni-welcome-hint[hidden] {
+  display: none !important;
+}
+#omni-welcome-hint kbd {
+  font: inherit !important;
+  font-size: var(--omni-fs-meta, 12px) !important;
+  color: rgb(var(--text-secondary)) !important;
+  padding: 1px 6px !important;
+  border-radius: 6px !important;
+  border: 1px solid var(--border-medium, rgba(255, 255, 255, 0.14)) !important;
+  background: rgb(var(--surface-secondary, 11 16 23)) !important;
+  line-height: 1.5 !important;
+}
+#omni-welcome-hint i {
+  font-style: normal !important;
+  color: rgb(var(--text-tertiary)) !important;
+}
+#omni-welcome-hint .lbl {
+  color: rgb(var(--text-secondary)) !important;
+  margin: 0 var(--omni-space-half, 4px) 0 2px !important;
+}
+#omni-welcome-hint .sep {
+  color: rgb(var(--text-tertiary)) !important;
+  margin: 0 var(--omni-space-half, 4px) !important;
+}
+
+/* ── ③ 欢迎屏问候语呼吸感（在 FACE-FIX 2026-11-07 段之上微调）───────────────
+ * 问候语与速查条之间留 24（--omni-space-4）；主文案字距已在 FACE-FIX 段处理。 */
+html main[role='main']:not(:has([data-testid^='message-'], .message-render))
+  :where(h1, [class*='text-3xl'], [class*='text-2xl']) {
+  margin-bottom: var(--omni-space-4, 24px) !important;
+}
+
+/* ── ④ 减少动态效果偏好：空态无动效需求，显式声明静态 ──────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  #omni-welcome-hint,
+  div[data-testid='convo-list-empty']::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* ── [G92] 侧栏底部两个无效主题按钮隐藏（2026-11-09）────────────────────────
+ * 皮肤固定暗色，LibreChat 原生 Toggle theme / Toggle high contrast 点了无视觉变化
+ * （探针实测：click 后 html class/data-theme/colorScheme 全不变）。按老板口径收敛 UI。 */
+button[aria-label="Toggle theme"],
+button[aria-label="Toggle high contrast"] {
+  display: none !important;
+}
+
+/* ── [G95] 流式期操作条锁可点：smooth 跟随滚动导致 hover 漂移 pointer-events 抖动吞 click ── */
+.result-streaming [data-testid="message-actions"],
+[data-testid="message-actions"]:has(+ .result-streaming) {
+  pointer-events: auto !important;
+  opacity: 1 !important;
+}

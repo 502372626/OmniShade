@@ -1,0 +1,363 @@
+/* ============================================================================
+ * OmniShade · 微动效统一层 [UI-MOTION 2026-11-08]
+ * ----------------------------------------------------------------------------
+ * 定位：全站动效唯一收口层，必须在所有 omni-craft-*.css 之后加载。
+ * 应用：desktop/ui/index.html 第 312 行（omni-craft-license.css 之后）追加：
+ *   <link rel="stylesheet" href="./omni-motion.css" />
+ *
+ * 三条铁律（本层唯一真相源）：
+ *   R1  只有 transform / opacity 两个合成器属性允许有非零时长。
+ *       background-color 仅在「会话行 hover」一处破例（白名单 M2，100ms）。
+ *   R2  交互动效时长 ≤160ms；呼吸/旋转类功能性循环（M5、spinner、
+ *       流式游标）不受此限，但只准动 opacity/transform。
+ *   R3  prefers-reduced-motion: reduce 一刀切全关（§7）。
+ *
+ * 六个白名单微动效：
+ *   M1 消息入场      opacity + translateY(4px)   80ms
+ *   M2 会话项 hover   background-color            100ms
+ *   M3 抽屉滑入      transform + opacity         160ms / 120ms
+ *   M4 发送按钮按下   scale(0.97)                 80ms
+ *   M5 工具卡呼吸    opacity 0.85↔1              1.6s 循环
+ *   M6 错误横幅入场  opacity + translateY(-4px)   120ms
+ *
+ * 同时修复（详见 motion-audit.md）：
+ *   F1 system.css:1209 的 `*{animation-duration:.12s}` 把 Tailwind
+ *      animate-pulse/spin/ping/bounce 压成 8.3Hz 频闪 → §3 恢复原始时长。
+ *   F2 同一规则的 `*{transition-duration:.12s}` 对未声明 transition-property
+ *      的元素等效于 transition-all 120ms（任何属性变化都补间，含布局属性）
+ *      → §1 全局熔断为 0s。
+ *   F3 混合属性关键帧（opacity+box-shadow / opacity+scale）→ §4 净化为纯 opacity。
+ *   F4 绘制类循环（background-position 扫光 / border-color 呼吸 / filter 辉光）
+ *      → §5 全砍，静态着色兜底。
+ * ========================================================================== */
+
+/* ============================== §1 动效令牌 + 全局熔断 ============================== */
+:root {
+  /* 微动效三档（唯一允许的交互动效时长） */
+  --omni-mx-press: 80ms;    /* 按下 / 微入场 */
+  --omni-mx-hover: 100ms;   /* hover / 淡入 */
+  --omni-mx-panel: 120ms;   /* 横幅 / 遮罩 */
+  --omni-mx-drawer: 160ms;  /* 抽屉 / 大位移上限 */
+  --omni-mx-breathe: 1.6s;  /* 功能性呼吸循环（M5） */
+  --omni-mx-ease: cubic-bezier(0.22, 1, 0.36, 1);   /* 全站唯一主曲线，与各 craft 层同值 */
+
+  /* [F2] 全局时长熔断：压过 system.css:1209 的 `*{transition-duration:.12s}`，
+   * 未显式声明 transition-property 的元素不再被「等效 transition-all」补间。 */
+}
+*,
+*::before,
+*::after {
+  transition-duration: 0s !important;
+}
+
+/* 历史时长令牌全部归零：所有 var(--dur-*) / 文件级 dur 令牌驱动的过渡
+ * （含 box-shadow / border-color / color / background / max-height / width
+ *   等非合成器属性）一律瞬时切换。合成器类 hover 由本层 §6 属性级恢复。 */
+:root {
+  --dur-1: 0ms !important;
+  --dur-2: 0ms !important;
+  --dur-3: 0ms !important;
+  --dur-4: 0ms !important;
+  --dur-5: 0ms !important;
+  --dur-large: 0ms !important;
+  --dur-press: 0ms !important;
+  --dur-hover: 0ms !important;
+  --dur-surface: 0ms !important;
+  --dur-enter: 0ms !important;
+  --omni-dur-1: 0ms !important;
+  --omni-dur-2: 0ms !important;
+  --omni-dur-3: 0ms !important;
+  --omni-dur-4: 0ms !important;
+  --omni-dur-5: 0ms !important;
+  --omni-transition-fast: 0ms var(--ease-out) !important;
+  --omni-transition-base: 0ms var(--ease-out) !important;
+  --omni-transition-surface: 0ms var(--ease-out) !important;
+  --omni-transition-lift: 0ms var(--ease-out) !important;
+  --omni-transition-enter: 0ms var(--ease-out) !important;
+  /* 文件级令牌（sidebar / kb / settings / tools） */
+  --sb-dur-hover: 0ms !important;
+  --sb-dur-press: 0ms !important;
+  --sb-dur-surface: 0ms !important;
+  --kb-dur-hover: 0ms !important;
+  --kb-dur-press: 0ms !important;
+  --kb-dur-surface: 0ms !important;
+  --set-dur-press: 0ms !important;
+  --set-dur-surface: 0ms !important;
+  --set-dur-enter: 0ms !important;
+  --tools-flow-dur: 0ms !important;
+  /* toast 进出：opacity/transform 纯合成器（R1/R2 达标），保留但收口到 160ms */
+  --omni-toast-dur: 160ms !important;
+}
+
+/* ============================== §2 六个白名单微动效 ============================== */
+
+/* ---- M1 消息入场：opacity 0→1 + translateY(4px→0)，80ms ------------------
+ * 覆盖 chat.css:71（原 400ms / 10px）。同选择器后置声明胜出。 */
+.omni-route-viewport .message-render {
+  animation: omni-mx-msg-in 80ms var(--omni-mx-ease) both !important;
+}
+@keyframes omni-mx-msg-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ---- M2 会话项 hover：仅 background-color，100ms --------------------------
+ * 覆盖 sidebar.css:99-102（原 bg/color/box-shadow 三属性）。color/box-shadow
+ * 改为瞬时切换（R1 破例仅限 bg-color 一处）。选择器逐字复刻保特异性对齐。 */
+:is(
+  aside[class*="flex-shrink-0"][class*="overflow-hidden"],
+  [class*="transition-width"][class*="bg-surface-secondary"]
+) :is(button[class*="w-full"][class*="cursor-pointer"]) {
+  transition: background-color 100ms var(--omni-mx-ease) !important;
+}
+
+/* 会话行左缘指示条（opacity+transform 纯合成器）：从 --sb-dur-hover 归零中
+ * 属性级恢复 100ms，激活/hover 的生长感保留。 */
+:is(
+  aside[class*="flex-shrink-0"][class*="overflow-hidden"],
+  [class*="transition-width"][class*="bg-surface-secondary"]
+) :is(button[class*="w-full"][class*="cursor-pointer"])::before {
+  transition: opacity 100ms var(--omni-mx-ease),
+    transform 100ms var(--omni-mx-ease) !important;
+}
+
+/* ---- M3 抽屉滑入：transform 160ms + opacity 120ms -------------------------
+ * 覆盖 license.css:154（原 400ms / 250ms）。
+ * cubic-bezier 复核结论：cubic-bezier(0.22,1,0.36,1) 为强 ease-out
+ * （近似 easeOutQuint），入场减速收尾语义正确，保留不换；
+ * 仅把 400ms 压到 160ms 上限档，440px 位移在曲线前 40% 即走完 80%，
+ * 观感「利落落位」而非「漂移」。scrim 同步 120ms。 */
+.omni-license__sheet {
+  transition: transform 160ms var(--omni-mx-ease),
+    opacity 120ms var(--omni-mx-ease) !important;
+}
+.omni-license__scrim {
+  transition: opacity 120ms var(--omni-mx-ease) !important;
+}
+
+/* ---- M4 发送按钮按下：scale(0.97)，80ms ------------------------------------
+ * 覆盖 chat.css:477-497。基态只保留 transform 过渡（box-shadow /
+ * background-color 过渡砍掉，hover 光晕瞬时切换）；hover 上浮 1px 保留
+ * （纯 transform）；按下 80ms 跟手。原 active scale(0.96)→0.97。 */
+.omni-route-viewport [data-testid='send-button'],
+.omni-route-viewport .bg-surface-submit {
+  transition: transform 100ms var(--omni-mx-ease) !important;
+}
+.omni-route-viewport [data-testid='send-button']:active,
+.omni-route-viewport .bg-surface-submit:active {
+  transform: scale(0.97) !important;
+  transition-duration: 80ms !important;
+}
+
+/* ---- M5 工具调用卡片状态呼吸：opacity 0.85↔1，1.6s ------------------------
+ * 覆盖 tools.css:259-263 / 377-379 两处锚点。原 keyframes 带 scale(0.86)
+ * 缩放（svg 缩放触发光栅化），净化为纯 opacity（§4 重定义同名关键帧）；
+ * 1.5s→1.6s 对齐工单口径。运行中可见、结束即停（shimmer 类摘除即失效）。 */
+html div[data-testid="tool-call"]:has(> button [class*="shimmer"]) svg,
+html button[data-subagent-tool-call][class*="animate-pulse-slow"] [class*="h-5"][class*="w-5"] svg {
+  animation-duration: 1.6s !important;
+}
+
+/* ---- M6 错误横幅入场：opacity + translateY(-4px)，120ms -------------------
+ * 覆盖 states.css:297 / 418（原 250/320ms，translateY(-6px)）。
+ * 工单原文「opacity+height」：height 是布局属性，逐帧 reflow 违反 R1 铁律，
+ * 改用 translateY(-4px) 表达同款「落下」感；横幅高度瞬时定型（单次 reflow）。
+ * 两个真锚（.omni-chrome-error 自造横幅 + status-error 双族类横幅）都收口。 */
+html .omni-chrome-error,
+html [class*="bg-status-error-subtle"][class*="border-status-error-border"]:not([class*="rounded-full"]) {
+  animation: omni-mx-error-in 120ms var(--omni-mx-ease) both !important;
+}
+@keyframes omni-mx-error-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ============================== §3 频闪修复（F1） ==============================
+ * system.css:1209 `*{animation-duration:.12s !important}` 会压过 Tailwind
+ * 循环类的非 important 时长声明：animate-pulse(2s)/spin(1s)/ping(1s)/bounce(1s)
+ * 全部变成 120ms 无限循环 ≈ 8.3Hz 频闪（骨架屏/加载圈重灾区，晕动风险）。
+ * 逐一恢复 Tailwind 官方原始时长；类选择器 (0,1,0)!important 后置胜出。 */
+.animate-pulse {
+  animation-duration: 2s !important;
+}
+.animate-spin {
+  animation-duration: 1s !important;
+  animation-timing-function: linear !important;   /* 旋转必须匀速 */
+}
+.animate-ping {
+  animation-duration: 1s !important;
+}
+.animate-bounce {
+  animation-duration: 1s !important;
+}
+/* 注册页 14px 圆环 spinner（register.css:640，非 important，同样被压频闪） */
+.btn-spin {
+  animation-duration: 0.7s !important;
+  animation-timing-function: linear !important;
+}
+
+/* ============================== §4 混合关键帧净化（F3） ==============================
+ * 同名 @keyframes 后置定义整体胜出：只留 opacity，box-shadow/scale 分量剔除。
+ * 静态分量保留在元素基态声明里，不参与逐帧插值。 */
+@keyframes omni-tool-icon-breathe {          /* tools.css:255-258 原 opacity+scale(0.86) */
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.85; }
+}
+@keyframes omni-think-dot {                  /* states.css:478-480 原 opacity+box-shadow */
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+@keyframes omni-stream-edge {                /* chat.css:826-833 原 opacity+box-shadow */
+  0%, 100% { opacity: 0.16; }
+  50%      { opacity: 0.72; }
+}
+
+/* ============================== §5 绘制类循环动画删除（F4） ==============================
+ * 凡逐帧驱动 background-position / border-color / filter 的无限动画全砍，
+ * 静态着色兜底（与各文件 prefers-reduced-motion 降级样式同口径）。 */
+
+/* 工具运行行左侧流光条（tools.css:251，background-position 滚动）→ 静态 accent 条 */
+html div[data-testid="tool-call"]:has(> button [class*="shimmer"])::before {
+  animation: none !important;
+}
+/* 不定态进度往复条（tools.css:420，background-position）→ 静态 30% accent 段 */
+html div[data-testid="activity-phase-card"]:has([data-testid="activity-phase-cursor"])::after {
+  animation: none !important;
+}
+/* 骨架屏扫光（states.css:95-103，background-position）→ 静态骨架色 */
+html div.animate-pulse {
+  animation: none !important;
+  background: rgb(var(--surface-tertiary)) !important;
+  background-image: none !important;
+}
+/* 授权弹窗骨架（license.css:638-656，background-position）→ 静态 */
+.omni-license__skeleton {
+  animation: none !important;
+}
+/* 空态虚线圆环呼吸（states.css:457，border-color）→ 静态描边 */
+html [data-testid="convo-list-empty"]::before {
+  animation: none !important;
+}
+/* LibreChat shimmer 扫字（bundle 非 important，被 .12s 通配压成频闪）→ 静态可读 */
+html .shimmer {
+  animation: none !important;
+  background: none !important;
+  -webkit-text-fill-color: rgb(var(--text-secondary)) !important;
+}
+/* 启动屏 spinner 辉光（boot.css:157-183，filter:drop-shadow 无限循环）：
+ * 保留 fade 入场 + 匀速旋转（合成器），砍掉 glow 辉光分量 */
+html body #root #loading-container svg.spinner,
+html body #root #loading-container [class*="spinner"],
+html body #root #loading-container [class*="animate-spin"] {
+  animation: omni-boot-fade .8s cubic-bezier(0.22, 1, 0.36, 1) .15s forwards,
+    omni-boot-rotate 1.1s linear infinite !important;
+}
+
+/* ============================== §6 合成器 hover 属性级恢复 ==============================
+ * 令牌归零误伤的 transform/opacity 类 hover（R1 达标、GPU 零成本）逐一恢复；
+ * 非合成器分量（box-shadow/border-color/color）保持瞬时。 */
+
+/* 消息操作浮出（chat.css:505 / 1034，opacity+transform） */
+.omni-route-viewport [data-testid='message-actions'],
+main[role="main"] .message-render [data-testid='message-actions'] {
+  transition: opacity 100ms var(--omni-mx-ease),
+    transform 100ms var(--omni-mx-ease) !important;
+}
+/* 用户气泡 hover 上浮 1px（chat.css:118-121，transform 分量） */
+.omni-route-viewport .message-render .user-turn [data-testid='message-body'] {
+  transition: transform 100ms var(--omni-mx-ease) !important;
+}
+/* 助手气泡 / 头像 / 输入框聚焦（chat.css:167/185/453）：纯 paint 过渡，全砍 */
+.omni-route-viewport .message-render .agent-turn [data-testid='message-body'],
+.omni-route-viewport .message-render .agent-turn h2 > span.size-6,
+.omni-route-viewport [data-testid='composer-surface'] {
+  transition: none !important;
+}
+/* 工具市场卡片 / 选择网格卡片（tools.css:70-77 / 97-104）：transform 分量恢复 */
+:is(
+  div[class*="rounded-2xl"][class*="border-border-light"][class*="h-32"]
+) {
+  transition: transform 100ms var(--omni-mx-ease) !important;
+}
+:is(
+  div[class*="border-border-medium"][class*="bg-transparent"][class*="p-6"]
+) {
+  transition: transform 100ms var(--omni-mx-ease) !important;
+}
+/* KB 文件卡片（kb.css:220-223）：transform 分量恢复，box-shadow/border 瞬时 */
+:is([class*="rounded-2xl"][class*="border-border-medium"]:not([role="dialog"]):not([role="alertdialog"])) {
+  transition: transform 100ms var(--omni-mx-ease) !important;
+}
+/* 授权弹窗：入口钮/卡片/主按钮保留 transform 微交互，其余字面量过渡全砍 */
+#omni-license-entry.omni-license__entry {
+  transition: transform 100ms var(--omni-mx-ease) !important;
+}
+.omni-license__card {
+  transition: transform 100ms var(--omni-mx-ease) !important;
+}
+.omni-license__btn {
+  transition: transform 80ms var(--omni-mx-ease) !important;   /* active scale(.985) 跟手 */
+}
+.omni-license__close,
+.omni-license__status,
+.omni-license__input,
+.omni-license__file-label,
+.omni-license__kb-fill {
+  transition: none !important;   /* 含 kb-fill 的 width 过渡（布局属性，重点清除） */
+}
+
+/* ============================== §7 prefers-reduced-motion 一刀切 ==============================
+ * 双保险：① 通配熔断兜住一切非 important 声明（含 Tailwind）；
+ * ② 高特异性 !important 锚点逐一显式关死（通配压不过它们的特异性）。
+ * 既有各文件降级块（chat:547 / states:305/499 / tools:459 / boot:288 /
+ * license:711 / register:990）与本层同向叠加，无冲突。 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  /* 白名单六项 + 频闪修复项 + 净化循环项：显式归零 */
+  .omni-route-viewport .message-render,
+  .omni-route-viewport [data-testid='send-button'],
+  .omni-route-viewport .bg-surface-submit,
+  .omni-route-viewport [data-testid='message-actions'],
+  main[role="main"] .message-render [data-testid='message-actions'],
+  html .omni-chrome-error,
+  html [class*="bg-status-error-subtle"][class*="border-status-error-border"]:not([class*="rounded-full"]),
+  .omni-license__sheet,
+  .omni-license__scrim,
+  .omni-license__btn,
+  #omni-license-entry.omni-license__entry,
+  html div[data-testid="tool-call"]:has(> button [class*="shimmer"]) svg,
+  html button[data-subagent-tool-call][class*="animate-pulse-slow"] [class*="h-5"][class*="w-5"] svg,
+  html div[data-testid="tool-call"]:has(> button [class*="shimmer"])::before,
+  html div[data-testid="activity-phase-card"]:has([data-testid="activity-phase-cursor"])::after,
+  .omni-license__skeleton,
+  .btn-spin,
+  .animate-pulse,
+  .animate-spin,
+  .animate-ping,
+  .animate-bounce,
+  html .shimmer {
+    animation: none !important;
+    transition: none !important;
+  }
+  /* M2 会话行 + 指示条 + M6 后备锚点（逐字复刻选择器保特异性） */
+  :is(
+    aside[class*="flex-shrink-0"][class*="overflow-hidden"],
+    [class*="transition-width"][class*="bg-surface-secondary"]
+  ) :is(button[class*="w-full"][class*="cursor-pointer"]),
+  :is(
+    aside[class*="flex-shrink-0"][class*="overflow-hidden"],
+    [class*="transition-width"][class*="bg-surface-secondary"]
+  ) :is(button[class*="w-full"][class*="cursor-pointer"])::before,
+  .omni-route-viewport .message-render .user-turn [data-testid='message-body'],
+  main[role="main"] .message-render .agent-turn [data-testid='message-body']:has(.result-streaming)::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

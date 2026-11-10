@@ -1,0 +1,474 @@
+/* ============================================================================
+ * omni-craft-tools.css — 工具/技能页（Tools Marketplace + 工具选择网格）工艺覆盖增强
+ * ----------------------------------------------------------------------------
+ * 作用域（仅覆盖，不碰 React 源码）：
+ *   A) 工具市场卡片网格（Tools Marketplace：含 Tools / Skills / MCP / Actions 四类）：
+ *        ul[class*="grid-cols-1"][class*="gap-2"][class*="sm:grid-cols-2"][class*="xl:grid-cols-3"]
+ *      每张卡片（gF 组件）关键节点（class 串 2026-11-01 从 index.HXWKKy-W.js 逐字核对）：
+ *        div.flex.h-32.w-full.flex-col.rounded-2xl.border.border-border-light      ← 卡片根
+ *        span.flex.h-10.w-10.rounded-xl                                             ← 图标瓦片（hF size=md）
+ *        span.inline-flex.rounded-full.bg-surface-tertiary.text-text-tertiary        ← 标签 chip
+ *        p.flex.items-center.text-sm.font-semibold.text-text-primary                ← 标题行
+ *   B) 工具选择网格（对话框内的工具/技能挑选网格）：
+ *        div[class*="grid-cols-1"][class*="grid-rows-2"][class*="gap-3"][class*="xl:grid-cols-4"]
+ *      每张卡片关键节点（ZL 组件）：
+ *        div.flex.flex-col.gap-4.rounded.border.border-border-medium.bg-transparent.p-6 ← 卡片根
+ *        div.h-[70px].w-[70px].shrink-0                                                  ← 图标瓦片
+ *
+ * ⚠ 可达性（G73 实测，必须写在文件里）：本层两个网格都在「工具库」面板里，而该面板的入口
+ *   由 /api/config 的 endpoints.agents.disableBuilder=true 掐掉（ui_shim.js 注释 [1.1.32] B6
+ *   「Agent Builder 隐藏」）——侧栏侧面板列表在 disableBuilder===true 时不 push 该项。所以
+ *   成品里 /、/c/new、/login 全部路由实测本文件 10 条选择器命中 0（只有 :root 命中 1）。
+ *   选择器本身与当前构建 DOM 逐字匹配（_g73/fixture_probe.js 用构建真身 class 实测 10/10 全中），
+ *   即：**不是选择器写错，是入口被裁**。一旦某个版本重开工具库，本层立刻生效。
+ *
+ * 工艺目标（全部 !important 高特异性，压过 Tailwind 工具类与内联样式）：
+ *   · 网格间距    — 卡片间隙从 gap-2(8px)/gap-3(12px) 拉到 16px，制造呼吸感
+ *   · 卡片圆角阴影 — 统一加大圆角 + 分层阴影 + hover 抬升 + accent 描边
+ *   · 标签配色    — 灰阶标签改为 accent 浅染底 + accent 字 + accent 描边，形成可辨识彩色 chip
+ *   · 图标对齐    — 图标瓦片加浅底/细边并 flex 居中，与标题基线对齐，去除悬空
+ *
+ * ⚠ 生效必须：在 desktop/ui/index.html 的 <head> 末尾（omni-craft <style> 之后、
+ *   其它 omni-craft-*.css 的 <link> 附近）追加一行：
+ *      <link rel="stylesheet" href="./omni-craft-tools.css" />
+ *    这是 HTML 装配，不是 React 源码改动（本任务按约定不修改 index.html）。
+ * ⚠ 截图未验证：以下为静态选择器覆盖，实际像素以浏览器渲染为准。
+ * ========================================================================== */
+
+/* 复用 omni-craft 注入的 CSS 变量（--accent-primary / --surface-* / --border-* 等）。 */
+:root {
+  --tool-ease: cubic-bezier(0.22, 1, 0.36, 1);                    /* 全局唯一主曲线 */
+  --tool-ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);   /* 例外保留（唯一回弹曲线）：
+      1.4 的控制点 y > 1 会产生过冲回弹，是工具面板「抽屉弹出/图标点按」手感的来源；
+      主曲线 .22,1,.36,1 无过冲，用它做回弹会让动效发木。仅用于 :active/transform 回弹，
+      不参与任何 opacity / color 过渡（过冲会让透明度越界闪烁）。 */
+  /* ↑ 唯一保留的回弹曲线：工具卡片是「被拿起/放下」的物理隐喻，
+     回弹(overshoot)是它唯一的材质线索；且回弹会让元素越界再收回，
+     若换成纯缓出，卡片抬升会显得"软塌"，丢失可点击的实感。故仅此一处保留。 */
+}
+
+/* ===================== 1. 网格间距 ===================== */
+/* 工具市场 + 工具选择网格：把原本 0.5/0.75rem 的小间隙统一拉到 1rem(16px)。 */
+:is(
+  ul[class*="grid-cols-1"][class*="gap-2"][class*="sm:grid-cols-2"][class*="xl:grid-cols-3"],
+  div[class*="grid-cols-1"][class*="grid-rows-2"][class*="gap-3"][class*="xl:grid-cols-4"]
+) {
+  gap: 1rem !important;
+}
+
+/* ===================== 2. 卡片：圆角 / 阴影 / hover 抬升 ===================== */
+/* 2a) 工具市场卡片（gF）：rounded-2xl + border-border-light + h-32（h-32 唯一区分卡片与页面级 max-w-7xl 容器） */
+:is(
+  div[class*="rounded-2xl"][class*="border-border-light"][class*="h-32"]
+) {
+  background-color: rgb(var(--surface-secondary)) !important;
+  border-color: var(--border-medium) !important;
+  border-radius: var(--omni-radius-card, 14px) !important;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.28),
+    0 8px 22px -12px rgba(0, 0, 0, 0.6) !important;
+  transition:
+    transform var(--dur-2, 150ms) var(--tool-ease-spring),
+    box-shadow var(--dur-3, 250ms) var(--tool-ease),
+    border-color var(--dur-2, 180ms) var(--tool-ease),
+    background-color var(--dur-2, 180ms) var(--tool-ease) !important;
+}
+:is(
+  div[class*="rounded-2xl"][class*="border-border-light"][class*="h-32"]
+):hover {
+  transform: translateY(-4px) !important;
+  border-color: rgb(var(--accent-primary)) !important;
+  background-color: rgb(var(--surface-tertiary)) !important;
+  box-shadow:
+    0 4px 8px rgba(0, 0, 0, 0.32),
+    0 16px 38px -14px rgba(91, 140, 255, 0.45) !important;
+}
+
+/* 2b) 工具选择网格卡片（对话框内）：rounded + border-border-medium + bg-transparent + p-6 */
+:is(
+  div[class*="border-border-medium"][class*="bg-transparent"][class*="p-6"]
+) {
+  background-color: rgb(var(--surface-secondary)) !important;
+  border-color: var(--border-medium) !important;
+  border-radius: var(--omni-radius-card, 14px) !important;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.28),
+    0 8px 22px -12px rgba(0, 0, 0, 0.55) !important;
+  transition:
+    transform var(--dur-2, 150ms) var(--tool-ease-spring),
+    box-shadow var(--dur-3, 250ms) var(--tool-ease),
+    border-color var(--dur-2, 180ms) var(--tool-ease),
+    background-color var(--dur-2, 180ms) var(--tool-ease) !important;
+}
+:is(
+  div[class*="border-border-medium"][class*="bg-transparent"][class*="p-6"]
+):hover {
+  transform: translateY(-3px) !important;
+  border-color: rgb(var(--accent-primary)) !important;
+  background-color: rgb(var(--surface-tertiary)) !important;
+  box-shadow:
+    0 4px 8px rgba(0, 0, 0, 0.3),
+    0 14px 32px -14px rgba(91, 140, 255, 0.4) !important;
+}
+
+/* ===================== 3. 标签配色（彩色 chip） ===================== */
+/* 市场卡片里的 kind / category 小标签：rounded-full + bg-surface-tertiary + text-text-tertiary。
+ * 改为 accent 浅染底 + accent 字 + accent 描边，建立“标签”语义。
+ * 先写 rgba 兜底，再用 color-mix 取变量（现代 Chromium/Electron 支持）。 */
+:is(
+  [class*="rounded-full"][class*="bg-surface-tertiary"][class*="text-text-tertiary"]
+) {
+  background-color: rgba(91, 140, 255, 0.16) !important;
+  background-color: color-mix(in srgb, rgb(var(--accent-primary)) 16%, transparent) !important;
+  color: rgb(107, 152, 255) !important;
+  /* [G73] 对比度实测：纯 accent #5b8cff 压在 16% accent 底上，卡片底色是 surface-secondary 时
+   * 4.70:1（过），但 hover 抬到 surface-tertiary 后只剩 4.39:1（10px 正文需 4.5 → 不过）。
+   * 混 10% 白 → rgb(107,152,255)，最差底色 5.00:1，两种态全过 AA。 */
+  color: color-mix(in srgb, rgb(var(--accent-primary)) 90%, white) !important;
+  border: 1px solid rgba(91, 140, 255, 0.3) !important;
+  border: 1px solid color-mix(in srgb, rgb(var(--accent-primary)) 30%, transparent) !important;
+  font-weight: 600 !important;
+  /* [G73] chip 是 text-[10px]，构建只改字号不声明行高 → 继承 body 22px，chip 被撑高一倍.
+   * 实测改前 line-height=22px；收到最小档 16px（10px 字 / 16px 行高 = 1.6）。
+   * [AUDIT-FIX 2026-11-07] 10px 字号越出 11px 最小档 → font-size 一并收到 --fs-1。 */
+  font-size: var(--fs-1, 11px) !important;
+  line-height: var(--lh-1, 16px) !important;
+  letter-spacing: 0.02em !important;
+}
+/* 标签前的色点（size-2.5）同步染 accent，强化“标签”语义 */
+:is(
+  [class*="rounded-full"][class*="bg-surface-tertiary"][class*="text-text-tertiary"]
+) [class*="size-2.5"] {
+  background-color: rgb(var(--accent-primary)) !important;
+  border-radius: var(--omni-radius-pill, 9999px) !important;
+}
+
+/* ===================== 4. 图标对齐（图标瓦片） ===================== */
+/* 4a) 市场卡片图标瓦片：卡片内的 h-10 w-10 rounded-xl —— 加浅底细边并 flex 居中 */
+:is(
+  div[class*="rounded-2xl"][class*="border-border-light"][class*="h-32"]
+    [class*="h-10"][class*="w-10"][class*="rounded-xl"]
+) {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: var(--omni-radius-control, 10px) !important;
+  background-color: rgb(var(--surface-tertiary)) !important;
+  border: 1px solid var(--border-light) !important;
+  overflow: hidden !important;
+}
+/* 4b) 工具选择网格图标瓦片：卡片内的 h-[70px] w-[70px] —— 圆角化 + 浅底细边 */
+:is(
+  div[class*="border-border-medium"][class*="bg-transparent"][class*="p-6"]
+    [class*="h-[70px]"][class*="w-[70px]"]
+) {
+  border-radius: var(--omni-radius-control, 10px) !important;
+  background-color: rgb(var(--surface-tertiary)) !important;
+  border: 1px solid var(--border-light) !important;
+  overflow: hidden !important;
+}
+/* 4c) 标题行（图标 + 名称）：卡片内保证图标与文字垂直居中，稳定行高 */
+:is(
+  div[class*="rounded-2xl"][class*="border-border-light"][class*="h-32"]
+    [class*="flex"][class*="items-center"][class*="text-sm"][class*="font-semibold"][class*="text-text-primary"]
+) {
+  align-items: center !important;
+  /* [G73] 原文 1.3 → 14px 算出 18.2px，不在 16/20/22/24/28 档；收到正文下一档 20px。 */
+  line-height: var(--lh-3, 20px) !important;
+}
+
+/* ============================================================================
+ * [TOOLS-EXP 2026-11-07] 工具输出与状态反馈增强（第二轮）
+ * ----------------------------------------------------------------------------
+ * DOM 证据（全部从当前构建逐字核对 + tool_cards_ui_result.json 实机探针）：
+ *   · 工具调用行（live 探针命中）：
+ *       div[data-testid="tool-call"][data-tool-call-id]  class = relative my-1.5
+ *         flex h-5 shrink-0 items-center gap-2.5（hooks.Bx 内变量 UA 同串）
+ *       其内 button(group/disclosure) → 状态字 span（运行中带 shimmer）、
+ *       失败字 span.font-normal.text-status-error（「· 失败」）、
+ *       完成耗时 span.font-normal.text-text-secondary（「· 1.2s」）
+ *   · 工具输出体：div[data-tool-call-output-id] → div.overflow-hidden
+ *       → div.overflow-hidden.rounded-lg.border.border-border-light.bg-surface-secondary
+ *       → pre.max-h-[300px].overflow-auto.whitespace-pre-wrap.break-words
+ *         （失败时挂 text-status-error，否则 text-text-secondary）
+ *   · 纯文本输出（oI 组件）：div > div.relative.pr-10 > pre.max-h-[300px]…，
+ *       同层兄弟 button.mt-1.h-auto.p-0.text-xs.text-text-secondary.underline
+ *       即构建自带的「显示更多 / 显示更少」开关（15/20 行阈值）
+ *   · 子代理工具卡：button[data-subagent-tool-call]，等待态挂 animate-pulse-slow
+ *   · 运行阶段游标/卡：div[data-testid="activity-phase-cursor"]（内含
+ *       span.submitting > span.result-thinking）、
+ *       div[data-testid="activity-phase-card"]（mb-2 mt-1 w-full）
+ *   · 进度文案：.progress-text-wrapper / .progress-text-content
+ * ⚠ 本层不碰 client 源码：重试按钮、步骤计数文案由 React 状态驱动，
+ *   CSS 只做三态皮肤 / 折叠遮罩 / 进度条 / 长任务反馈；行为逻辑一概不动。
+ * ========================================================================== */
+
+/* ---------- 5. [TOOLS-EXP 2026-11-07] 状态令牌（本层自持，空格三元组） ---------- */
+:root {
+  --tools-accent-rgb: 91 140 255;     /* 同 --accent-primary，供 alpha 合成 */
+  --tools-success: #37d67a;            /* 成功绿（工单基线） */
+  --tools-success-rgb: 55 214 122;
+  --tools-warn-rgb: 255 194 102;      /* 警示（工单基线） */
+  --tools-error-rgb: 255 122 122;     /* 错误字面色（暗底 AA 过线，比 224 47 31 亮） */
+  --tools-flow-dur: 300ms;            /* 三态切换过渡基线（工单要求） */
+}
+
+/* ---------- 6. [TOOLS-EXP 2026-11-07] 工具调用行 · 三态 ----------
+ * 行本体是 20px 高的紧凑行（不是大卡），左侧色条用 ::before 画在行的左外沟，
+ * 不占布局宽度（行本身 relative，消息区内边距 ≥ 12px，-10px 处不会裁切）。
+ * 三态识别全部用 :has() 读子节点语义（shimmer=运行 / text-status-error=失败 /
+ * text-text-secondary 耗时 span=成功），不依赖任何 JS 注入。 */
+html div[data-testid="tool-call"] {
+  transition:
+    color var(--tools-flow-dur) var(--tool-ease),
+    background-color var(--tools-flow-dur) var(--tool-ease) !important;
+}
+
+/* 6a) 运行中：左侧 2px accent 流光边框（纵向渐变滚动）+ 图标呼吸 */
+@keyframes omni-tool-flow-down {
+  0%   { background-position: 0 0; }
+  100% { background-position: 0 -64px; }
+}
+html div[data-testid="tool-call"]:has(> button [class*="shimmer"]) {
+  color: rgb(var(--text-primary)) !important;
+}
+html div[data-testid="tool-call"]:has(> button [class*="shimmer"])::before {
+  content: "" !important;
+  position: absolute !important;
+  left: -10px !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  width: 2px !important;
+  border-radius: 2px !important;
+  background: linear-gradient(
+    180deg,
+    rgb(var(--tools-accent-rgb) / 0.15) 0%,
+    rgb(var(--tools-accent-rgb) / 1) 40%,
+    rgb(var(--tools-accent-rgb) / 1) 60%,
+    rgb(var(--tools-accent-rgb) / 0.15) 100%
+  ) !important;
+  background-size: 100% 64px !important;
+  animation: omni-tool-flow-down 1.1s linear infinite !important;
+  animation-timing-function: linear !important;   /* 压过 system 层 *{ease-out} */
+}
+/* spinner 呼吸：运行行的图标（button 内首个 svg）做 1.5s 呼吸 */
+@keyframes omni-tool-icon-breathe {
+  0%, 100% { opacity: 1;   transform: scale(1); }
+  50%      { opacity: 0.45; transform: scale(0.86); }
+}
+html div[data-testid="tool-call"]:has(> button [class*="shimmer"]) svg {
+  animation: omni-tool-icon-breathe 1.5s ease-in-out infinite !important;
+  animation-timing-function: ease-in-out !important;
+  color: rgb(var(--tools-accent-rgb)) !important;
+}
+
+/* 6b) 成功：左侧绿色状态点 + 结果摘要行（构建自带的耗时 span 即摘要锚）。
+ * 判定：行内有耗时字（text-text-secondary）且无 shimmer、无失败字。
+ * ⚠ 复合伪类必须连写（中间断行 = 后代组合器，整条选择器就废了）。 */
+html div[data-testid="tool-call"]:has(> button [class*="text-text-secondary"][class*="font-normal"]):not(:has([class*="shimmer"])):not(:has([class*="text-status-error"]))::before {
+  content: "" !important;
+  position: absolute !important;
+  left: -13px !important;
+  top: 50% !important;
+  width: 6px !important;
+  height: 6px !important;
+  margin-top: -3px !important;
+  border-radius: 9999px !important;
+  background-color: var(--tools-success) !important;
+  box-shadow: 0 0 6px rgb(var(--tools-success-rgb) / 0.55) !important;
+}
+/* 成功行内的副标题 / 耗时摘要染淡绿，一眼区分“跑完了” */
+html div[data-testid="tool-call"]:has(> button [class*="text-text-secondary"][class*="font-normal"]):not(:has([class*="shimmer"])):not(:has([class*="text-status-error"])) > button [class*="text-text-secondary"][class*="font-normal"] {
+  color: rgb(var(--tools-success-rgb) / 0.9) !important;
+}
+
+/* 6c) 失败：左侧 2px 错误红条 + 失败文案加粗提级（重试入口由构建的
+ * 消息级操作条提供，CSS 不造按钮，避免假控件骗点击） */
+html div[data-testid="tool-call"]:has(> button [class*="text-status-error"]) {
+  color: rgb(var(--tools-error-rgb)) !important;
+}
+html div[data-testid="tool-call"]:has(> button [class*="text-status-error"])::before {
+  content: "" !important;
+  position: absolute !important;
+  left: -10px !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  width: 2px !important;
+  border-radius: 2px !important;
+  background-color: rgb(var(--tools-error-rgb)) !important;
+  box-shadow: 0 0 6px rgb(var(--tools-error-rgb) / 0.4) !important;
+}
+html div[data-testid="tool-call"] [class*="text-status-error"] {
+  font-weight: 600 !important;
+}
+
+/* 6d) 输出容器随结果态着色（只圈工具输出体，不误伤聊天 markdown 代码块：
+ *     锚定在 data-tool-call-output-id 内部） */
+html [data-tool-call-output-id] div[class*="bg-surface-secondary"][class*="rounded-lg"] {
+  transition:
+    border-color var(--tools-flow-dur) var(--tool-ease),
+    box-shadow var(--tools-flow-dur) var(--tool-ease) !important;
+}
+html [data-tool-call-output-id] div[class*="bg-surface-secondary"][class*="rounded-lg"]:has([class*="text-status-error"]) {
+  border-color: rgb(var(--tools-error-rgb) / 0.45) !important;
+  box-shadow: 0 0 0 1px rgb(var(--tools-error-rgb) / 0.12) !important;
+}
+html [data-tool-call-output-id] div[class*="bg-surface-secondary"][class*="rounded-lg"]:not(:has([class*="text-status-error"])) {
+  border-color: rgb(var(--tools-success-rgb) / 0.28) !important;
+}
+
+/* ---------- 7. [TOOLS-EXP 2026-11-07] 工具输出折叠 ----------
+ * 工单：默认 maxHeight 约 200px + 底部 24px 渐隐遮罩 + “展开全部 (N 行)”按钮。
+ * 构建的展开/收起开关已存在（oI 的 show more / less，15/20 行阈值），
+ * CSS 只改视觉层：pre 收到 200px + 底部 24px 渐隐（mask，滚动条不受影响），
+ * 开关重做成 accent 胶囊按钮。 */
+html [data-tool-call-output-id] pre[class*="max-h-[300px]"],
+html div[class*="pr-10"] > pre[class*="max-h-[300px]"] {
+  max-height: 200px !important;
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 calc(100% - 24px),
+    transparent 100%
+  ) !important;
+  mask-image: linear-gradient(
+    to bottom,
+    #000 calc(100% - 24px),
+    transparent 100%
+  ) !important;
+  scrollbar-width: thin !important;
+}
+/* oI 输出块的“显示更多 / 更少”按钮 → accent 胶囊（即工单的展开全部按钮） */
+html div:has(> div[class*="pr-10"]) > button[class*="underline"][class*="text-xs"] {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  margin-top: 6px !important;
+  padding: 2px 12px !important;
+  border-radius: 9999px !important;
+  border: 1px solid rgb(var(--tools-accent-rgb) / 0.35) !important;
+  background-color: rgb(var(--tools-accent-rgb) / 0.12) !important;
+  color: color-mix(in srgb, rgb(var(--accent-primary)) 88%, white) !important;
+  text-decoration: none !important;
+  font-weight: 600 !important;
+  line-height: var(--lh-2, 16px) !important;
+  transition:
+    background-color var(--dur-2, 180ms) var(--tool-ease),
+    border-color var(--dur-2, 180ms) var(--tool-ease) !important;
+}
+html div:has(> div[class*="pr-10"]) > button[class*="underline"][class*="text-xs"]:hover {
+  background-color: rgb(var(--tools-accent-rgb) / 0.22) !important;
+  border-color: rgb(var(--tools-accent-rgb) / 0.6) !important;
+}
+
+/* ---------- 8. [TOOLS-EXP 2026-11-07] 子代理工具卡三态 ----------
+ * 卡本体是真卡片（border + bg + p-3），等待态挂 animate-pulse-slow；
+ * 运行 → accent 流光左边条；结束 → 左边条转绿；300ms 过渡。 */
+html button[data-subagent-tool-call] {
+  transition:
+    border-color var(--tools-flow-dur) var(--tool-ease),
+    background-color var(--tools-flow-dur) var(--tool-ease),
+    box-shadow var(--tools-flow-dur) var(--tool-ease) !important;
+}
+html button[data-subagent-tool-call][class*="animate-pulse-slow"] {
+  border-left: 2px solid rgb(var(--tools-accent-rgb)) !important;
+  box-shadow: inset 2px 0 6px -4px rgb(var(--tools-accent-rgb) / 0.8) !important;
+}
+html button[data-subagent-tool-call][class*="animate-pulse-slow"] [class*="h-5"][class*="w-5"] svg {
+  animation: omni-tool-icon-breathe 1.5s ease-in-out infinite !important;
+  animation-timing-function: ease-in-out !important;
+}
+html button[data-subagent-tool-call]:not([class*="animate-pulse-slow"]):not(:disabled) {
+  border-left-color: rgb(var(--tools-success-rgb) / 0.7) !important;
+}
+
+/* ---------- 9. [TOOLS-EXP 2026-11-07] 长任务进度感（目标引擎 / 多步工具） ----------
+ * 工单：底部细进度条不定态（左右往复）+ “正在执行第 N 步”文案。
+ * DOM 事实：步骤文案由 React（activity-phase-card 内的 tool-status-text /
+ * progress-text）驱动，CSS 不注入计数；本层补“持续反馈”的视觉层：
+ *   9a) 阶段卡底部 2px 不定态往复条（:has 游标在跑才出现）
+ *   9b) 游标呼吸点修正锚（.submitting > .result-thinking，真锚在
+ *       data-testid=activity-phase-cursor 内）
+ *   9c) progress-text 两级文案染 accent + 保持可读 */
+@keyframes omni-progress-oscillate {
+  0%   { background-position: 0% 0; }
+  100% { background-position: 100% 0; }
+}
+/* 9a) 不定态往复条：轨道 + 30% 宽滑块，background-position 往复 */
+html div[data-testid="activity-phase-card"]:has([data-testid="activity-phase-cursor"]) {
+  position: relative !important;
+}
+html div[data-testid="activity-phase-card"]:has([data-testid="activity-phase-cursor"])::after {
+  content: "" !important;
+  position: absolute !important;
+  left: 4px !important;
+  right: 4px !important;
+  bottom: -3px !important;
+  height: 2px !important;
+  border-radius: 2px !important;
+  background: rgb(var(--tools-accent-rgb) / 0.14) !important;   /* 轨道底 */
+}
+html div[data-testid="activity-phase-card"]:has([data-testid="activity-phase-cursor"])::after {
+  /* 滑块：30% 宽 accent 渐变段，叠在轨道上左右往复（100% 定位 = 完整走满） */
+  background-image: linear-gradient(
+    90deg,
+    rgb(var(--tools-accent-rgb) / 0.2),
+    rgb(var(--tools-accent-rgb)),
+    rgb(var(--tools-accent-rgb) / 0.2)
+  ) !important;
+  background-repeat: no-repeat !important;
+  background-size: 30% 100% !important;
+  animation: omni-progress-oscillate 1.6s ease-in-out infinite alternate !important;
+  animation-timing-function: ease-in-out !important;
+}
+/* 9b) 游标呼吸点的 live 锚样式由 omni-craft-states.css §16 统一持有
+ *     （.submitting > .result-thinking，本层只引用 DOM 锚，不重复上色）。 */
+/* 9c) 进度文案两级染 accent（在暗底 ≥4.5:1，且只动颜色不动排版） */
+html .progress-text-wrapper {
+  color: color-mix(in srgb, rgb(var(--accent-primary)) 82%, white) !important;
+}
+html .progress-text-content {
+  color: color-mix(in srgb, rgb(var(--accent-primary)) 82%, white) !important;
+}
+
+/* ---------- 10. [TOOLS-EXP 2026-11-07] 加载中按钮态 ----------
+ * spinner 内嵌按钮（svg.animate-spin 挂在按钮内）：
+ * 禁指针（pointer-events:none 防连点重入）+ 文案面降透明 + spinner 保持 accent。 */
+html button:has(> [class*="animate-spin"]),
+html button:has(> svg[class*="animate-spin"]) {
+  pointer-events: none !important;
+  cursor: progress !important;
+}
+html button:has(> [class*="animate-spin"]):not(:disabled),
+html button:has(> svg[class*="animate-spin"]):not(:disabled) {
+  opacity: 0.85 !important;
+}
+html button:has(> [class*="animate-spin"]) [class*="animate-spin"] {
+  color: rgb(var(--accent-primary)) !important;
+  animation-timing-function: linear !important;   /* 旋转不吃 ease-out */
+}
+
+/* ---------- 11. [TOOLS-EXP 2026-11-07] 工具组面板 / 组标签行轻量反馈 ----------
+ * 组头行（含展开箭头，构建自带 duration-200 ease-out）hover 微亮，
+ * 组面板展开时左侧 1px 分隔线，帮助多步工具的层级追踪。 */
+html [data-testid="tool-call-group-panel"] {
+  border-left: 1px solid rgb(var(--border-light)) !important;
+  padding-left: 8px !important;
+}
+
+/* ---------- 12. [TOOLS-EXP 2026-11-07] 动效降级 ---------- */
+@media (prefers-reduced-motion: reduce) {
+  html div[data-testid="tool-call"]:has(> button [class*="shimmer"])::before,
+  html div[data-testid="tool-call"]:has(> button [class*="shimmer"]) svg,
+  html button[data-subagent-tool-call][class*="animate-pulse-slow"] [class*="h-5"][class*="w-5"] svg,
+  html div[data-testid="activity-phase-card"]:has([data-testid="activity-phase-cursor"])::after,
+  html [data-testid="activity-phase-cursor"] .submitting .result-thinking,
+  html button:has(> [class*="animate-spin"]) [class*="animate-spin"] {
+    animation: none !important;
+  }
+  html div[data-testid="tool-call"]:has(> button [class*="shimmer"])::before {
+    background-color: rgb(var(--tools-accent-rgb) / 0.8) !important;
+  }
+  html div[data-testid="activity-phase-card"]:has([data-testid="activity-phase-cursor"])::after {
+    background: rgb(var(--tools-accent-rgb) / 0.35) !important;
+  }
+}

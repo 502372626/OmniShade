@@ -1,0 +1,171 @@
+<!-- =============================================================================
+ * omni-license-panel.html — 「本机授权」面板片段 (OmniShade omni-craft 工艺)
+ * -----------------------------------------------------------------------------
+ * 挂载方式: ui/omni-license-panel.js 取本片段注入 document.body
+ *           （默认浮层模式；传 container 时行内嵌进设置页容器）
+ *           直接以 URL 打开本文件时，尾部自举块会装载 CSS + JS 并收养这段已有节点
+ * 数据面  : ① window.omnishade.license（Electron preload，真·零网络）
+ *           ② 回环 /api/omni-license/*（静态 server / 无头截图场景）
+ *           两者都指向 desktop/license_client.js：本地文件 IO + 内置 Ed25519 验签
+ * 入口    : #omni-license-entry（右下角常驻按钮）；
+ *           也可 JS 调 OmniLicensePanel.open() 或点 [data-omni-license-open]
+ * 状态    : 容器 data-state = closed|open；徽章 data-state = unknown|inactive|
+ *           active|expired|mismatch|error
+ * 本片段所有 id 均在 omni-license-panel.js 中被引用，静态核对见
+ *   desktop/_g11_static_check.js
+ *
+ * G13: 原文件是「裸片段」——没有 link 引 CSS、没有 script 引 JS，
+ *   直接按 URL 打开时：CSS 0 条（入口按钮浏览器默认样式落在左上角 8,8）、
+ *   JS 不执行（无 bind / 无 refresh），#omni-license-panel 带着 hidden 永久关闭
+ *   → 截图只剩一颗按钮 + 全白。尾部自举块即为修复。
+ *   innerHTML 注入的 script 不会执行，因此这段自举代码在「被 fetch 注入」时
+ *   天然无害，只在「被当文档解析」时生效。
+ * ========================================================================== -->
+
+<button
+  type="button"
+  id="omni-license-entry"
+  class="omni-license__entry"
+  data-state="unknown"
+  aria-haspopup="dialog"
+  aria-controls="omni-license-panel"
+  title="授权信息"
+  style="display:none"
+>
+  <span class="omni-license__entry-dot" aria-hidden="true"></span>
+  <span>授权</span>
+</button>
+
+<div id="omni-license-panel" class="omni-license" data-state="closed" hidden>
+  <div class="omni-license__scrim" data-omni-license-close></div>
+
+  <aside
+    class="omni-license__sheet"
+    role="dialog"
+    aria-modal="false"
+    aria-labelledby="omni-license-title"
+  >
+    <header class="omni-license__head">
+      <div>
+        <h2 class="omni-license__title" id="omni-license-title">授权</h2>
+        <p class="omni-license__subtitle" id="omni-license-subtitle">
+          授权与使用信息。
+        </p>
+      </div>
+      <button
+        type="button"
+        class="omni-license__close"
+        id="omni-license-close"
+        data-omni-license-close
+        aria-label="关闭授权面板"
+      >
+        ×
+      </button>
+    </header>
+
+    <!-- 状态徽章：未激活 / 已激活 / 已过期 / 绑定不匹配 -->
+    <div class="omni-license__status" id="omni-license-status" data-state="unknown">
+      <span class="omni-license__status-dot" id="omni-license-status-dot" aria-hidden="true"></span>
+      <span id="omni-license-status-text">正在读取本机授权…</span>
+    </div>
+
+    <!-- 加载态 -->
+    <div class="omni-license__loading" id="omni-license-loading" role="status" aria-live="polite" hidden>
+      <span class="omni-license__spinner" aria-hidden="true"></span>
+      <span id="omni-license-loading-text">正在本机校验授权…</span>
+    </div>
+
+    <!-- 空态：本机没有任何可用授权文件时展示 -->
+    <div class="omni-license__empty" id="omni-license-empty" hidden>
+      <span class="omni-license__empty-mark" aria-hidden="true">◇</span>
+      <p class="omni-license__empty-title" id="omni-license-empty-title">本机尚未激活</p>
+      <p class="omni-license__empty-desc" id="omni-license-empty-desc">
+        未找到 license.key。把签发好的授权内容粘贴到下方，或选择 license.key 文件完成本机激活。
+      </p>
+    </div>
+
+    <!-- 授权信息 -->
+    <section class="omni-license__card">
+      <h3 class="omni-license__card-title">授权信息</h3>
+      <div class="omni-license__meta" id="omni-license-meta">
+        <div class="omni-license__meta-item">
+          <span class="omni-license__meta-key">版本</span>
+          <span class="omni-license__meta-val" id="omni-license-tier"><span class="omni-license__skeleton" style="width: 48px"></span></span>
+        </div>
+        <div class="omni-license__meta-item">
+          <span class="omni-license__meta-key">到期时间</span>
+          <span class="omni-license__meta-val" id="omni-license-expiry"><span class="omni-license__skeleton" style="width: 96px"></span></span>
+        </div>
+        <div class="omni-license__meta-item">
+          <span class="omni-license__meta-key">剩余天数</span>
+          <span class="omni-license__meta-val" id="omni-license-days"><span class="omni-license__skeleton" style="width: 40px"></span></span>
+        </div>
+        <div class="omni-license__meta-item">
+          <span class="omni-license__meta-key">授权来源</span>
+          <span class="omni-license__meta-val" id="omni-license-source"><span class="omni-license__skeleton" style="width: 56px"></span></span>
+        </div>
+      </div>
+      <div class="omni-license__row">
+        <span class="omni-license__label" id="omni-license-bound-label">绑定账号</span>
+        <span class="omni-license__value" id="omni-license-bound">—</span>
+      </div>
+    </section>
+
+    <!-- 使用情况 -->
+    <section class="omni-license__card">
+      <h3 class="omni-license__card-title">使用情况</h3>
+      <div class="omni-license__meta" id="omni-license-plan">
+        <div class="omni-license__meta-item">
+          <span class="omni-license__meta-key">使用类型</span>
+          <span class="omni-license__meta-val" id="omni-license-plan-sku">—</span>
+        </div>
+        <div class="omni-license__meta-item">
+          <span class="omni-license__meta-key">知识库今日配额</span>
+          <span class="omni-license__meta-val" id="omni-license-plan-kb">—</span>
+        </div>
+        <div class="omni-license__meta-item">
+          <span class="omni-license__meta-key">工具范围</span>
+          <span class="omni-license__meta-val" id="omni-license-plan-scope">—</span>
+        </div>
+        <div class="omni-license__meta-item">
+          <span class="omni-license__meta-key">有效期至</span>
+          <span class="omni-license__meta-val" id="omni-license-plan-expiry">—</span>
+        </div>
+      </div>
+      <div class="omni-license__kb-wrap" id="omni-license-kb-wrap" hidden>
+        <div class="omni-license__kb-bar" id="omni-license-kb-bar">
+          <div class="omni-license__kb-fill" id="omni-license-kb-fill"></div>
+        </div>
+        <span class="omni-license__kb-text" id="omni-license-kb-text">—</span>
+      </div>
+    </section>
+
+    <!-- 离线校验结果 -->
+    <section class="omni-license__card">
+      <h3 class="omni-license__card-title" id="omni-license-verify-title">离线校验结果</h3>
+      <div class="omni-license__verify" id="omni-license-verify" data-state="unknown">
+        <span class="omni-license__verify-text" id="omni-license-verify-text">尚未校验</span>
+        <span class="omni-license__verify-code" id="omni-license-verify-code">—</span>
+      </div>
+    </section>
+
+    <!-- 操作：只保留重新校验，卡密激活走「账号」页，不再在本机粘贴授权码 -->
+    <div class="omni-license__actions">
+      <button
+        type="button"
+        class="omni-license__btn omni-license__btn--ghost"
+        id="omni-license-refresh"
+      >
+        重新校验
+      </button>
+    </div>
+
+    <p class="omni-license__msg" id="omni-license-msg" role="status" aria-live="polite"></p>
+  </aside>
+</div>
+
+<!-- ===== [G13] 自举块：本片段被当作独立文档打开时装载样式与逻辑 =====
+     通过 innerHTML 注入到宿主页面时，这段 script 不会被浏览器执行（HTML 规范），
+     所以对 index.html 那条「fetch 片段 → 注入」的路径零影响。 -->
+<link rel="stylesheet" href="./omni-craft-license.css" />
+<script src="./omni-license-panel.js" defer></script>

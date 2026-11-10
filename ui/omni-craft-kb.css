@@ -1,0 +1,406 @@
+/* ============================================================================
+ * omni-craft-kb.css — 知识库 / 文件管理页 工艺覆盖增强层
+ * ----------------------------------------------------------------------------
+ * [G71] 本轮只改 CSS，DOM / 脚本 / 路由 / 契约零改动，做两件事：
+ *   ① 重钉锚点。旧版 31 条规则按「class 属性子串逐字拼接」写死（例如
+ *      [class*="rounded-lg border border-border-light bg-transparent shadow-sm"]
+ *      这种把整串 class 当子串匹配的写法），编译产物一升级 class 顺序/值就变，
+ *      实测 /omni 相关页面命中 1/31。现改为「拆成多个 [class*=] 与」+ 语义属性
+ *      锚点（role / data-testid / colspan / has()），逐条在真页面验过命中。
+ *   ② 令牌归位。字号/行高/内距/时长只取 omni-craft-system.css 的
+ *      6 级字号 11/12/13/14/16/20、6 档间距 4/8/12/16/24/32、三档时长
+ *      150/250/400 与唯一主曲线，文件内不再出现裸 px / 裸秒。
+ *
+ * 真锚点（本构建实测 2026-11-01，页面 /c/new + 附加文件面板 + 管理文件弹窗）：
+ *   面板根     [role="region"]:has(table)                                  1
+ *   表格容器   [class*="rounded-lg"][class*="border-border-light"]
+ *              [class*="bg-transparent"][class*="shadow-sm"]                1
+ *   表格       [class*="table-fixed"]（面板）/ [class*="border-separate"]（弹窗）
+ *   表头格     ... thead th  → bg-surface-secondary py-2 text-text-secondary
+ *   表体行     [class*="border-b"][class*="border-border-light"]
+ *   表体格     ... tbody td
+ *   空态格     ... tbody td[colspan]（«无结果。» 落在 colspan 单元格里）
+ *   分页条     [role="navigation"][class*="justify-between"]（面板）
+ *              [role="dialog"] div[class*="justify-end"][class*="gap-2"]（弹窗）
+ *   过滤框     [role="region"]:has(table) input / [role="dialog"] input[class*="peer"]
+ *   弹窗       [role="dialog"][class*="max-w-11/12"]
+ *   卡片体     [class*="rounded-2xl"][class*="border-border-medium"]:not([role="dialog"]):not([role="alertdialog"])
+ *   拖拽区     [class*="border-dashed"]
+ *   进度轨     [class*="h-2"][class*="rounded-full"]
+ *   主按钮     [class*="btn-neutral"]
+ *   拖放遮罩   [class*="backdrop-blur-xl"]
+ *
+ * 字号层级（本轮收口后的指派，全部落在 6 级阶梯内）：
+ *   16 → 弹窗标题（--fs-5/--lh-5）
+ *   14 → 主按钮 / 过滤框正文（--fs-4/--lh-4）
+ *   13 → 表格单元格 / 卡片说明（--fs-3/--lh-3）
+ *   12 → 次级说明（--fs-2/--lh-2）
+ *   11 → 表头列标签（--fs-1/--lh-1，大写 + 字距）
+ *
+ * 特异性策略：每条规则以「:is([class*="…"], …)」局部匹配起手（复合特异性
+ *   ≥ (0,2,0)），全部属性 !important，稳过 Tailwind 单类 (0,1,0)，不改 React 源码。
+ * ========================================================================== */
+
+:root {
+  --kb-radius-card: var(--omni-radius-card, 14px);
+  --kb-radius-button: var(--omni-radius-button, 10px);
+  --kb-radius-input: var(--omni-radius-input, 10px);
+  --kb-radius-lg: var(--omni-radius-dialog, 16px); /* 16 = 弹窗 / 遮罩 */
+  --kb-ease: var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1)); /* 唯一主曲线 */
+  /* 间距全走全局标尺（G71：原来四个自建变量值与 --space-* 重复，改为直连令牌） */
+  --kb-gap-xs: var(--space-2, 8px);
+  --kb-gap-sm: var(--space-3, 12px);
+  --kb-gap-md: var(--space-4, 16px);
+  --kb-gap-lg: var(--space-5, 24px);
+  --kb-dur-hover: var(--dur-2, 150ms);
+  --kb-dur-press: var(--dur-1, 150ms);
+  --kb-dur-surface: var(--dur-3, 250ms);
+  --kb-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.28),
+    0 8px 22px -12px rgba(0, 0, 0, 0.6);
+  --kb-shadow-card-hover: 0 2px 6px rgba(0, 0, 0, 0.32),
+    0 14px 30px -14px rgba(91, 140, 255, 0.45);
+  --kb-accent-glow: 0 0 0 1px rgb(var(--accent-primary, 91 140 255)),
+    0 6px 18px -8px rgba(91, 140, 255, 0.5);
+}
+
+/* =========================================================================
+ * [A] 文件管理面 —— 表格容器 / 表头 / 表体 / 单元格 / 空态 / 分页 / 过滤框
+ * ========================================================================= */
+
+/* —— 表格容器：细边框 + 14px 圆角 + 轻阴影（原 bg-transparent 沉入 surface） */
+:is(
+  [class*="rounded-lg"][class*="border-border-light"][class*="bg-transparent"][class*="shadow-sm"]
+) {
+  border-radius: var(--kb-radius-card) !important;
+  border: 1px solid var(--border-medium, rgba(255, 255, 255, 0.1)) !important;
+  background: var(--surface-secondary, #11141b) !important;
+  box-shadow: var(--kb-shadow-card) !important;
+  overflow: hidden !important;
+}
+
+/* —— 表头格：11px 大写微标签 + 字距，与正文拉开层级 */
+:is(
+  [class*="bg-surface-secondary"][class*="py-2"][class*="text-text-secondary"]
+) {
+  background: var(--surface-tertiary, #161a23) !important;
+  color: rgb(var(--text-tertiary, 154 164 182)) !important;
+  font-size: var(--fs-1, 11px) !important;
+  line-height: var(--lh-1, 16px) !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.06em !important;
+  padding: var(--space-2, 8px) var(--space-4, 16px) !important;
+}
+
+/* —— 表体行：过渡落在时长阶；hover 染 accent + 左侧色条 */
+:is([class*="border-b"][class*="border-border-light"]) {
+  transition:
+    background-color var(--kb-dur-hover) var(--kb-ease),
+    box-shadow var(--kb-dur-hover) var(--kb-ease) !important;
+}
+:is([class*="border-b"][class*="border-border-light"]):hover {
+  background: color-mix(
+    in srgb,
+    var(--surface-hover, #1a1f2b) 90%,
+    rgb(var(--accent-primary, 91 140 255)) 10%
+  ) !important;
+  box-shadow: inset 3px 0 0 rgb(var(--accent-primary, 91 140 255)) !important;
+}
+
+/* —— 单元格：内距 12/16、正文 13/20（表 + 弹窗表共用） */
+:is([class*="table-fixed"]) td,
+:is([class*="border-separate"][class*="border-spacing-0"]) td {
+  padding: var(--kb-gap-sm) var(--kb-gap-md) !important;
+  font-size: var(--fs-3, 13px) !important;
+  line-height: var(--lh-3, 20px) !important;
+  color: rgb(var(--text-secondary, 194 203 217)) !important;
+  vertical-align: middle !important;
+}
+
+/* —— 空态格：«无结果。» 是 td[colspan]，留白放松 + tertiary 文字 */
+:is([class*="table-fixed"], [class*="border-separate"]) tbody td[colspan] {
+  padding: var(--kb-gap-lg) !important;
+  font-size: var(--fs-3, 13px) !important;
+  line-height: var(--lh-3, 20px) !important;
+  color: rgb(var(--text-tertiary, 154 164 182)) !important;
+  text-align: center !important;
+}
+
+/* —— 分页：面板 [role=navigation] / 弹窗 justify-end 工具条，统一按钮形态 */
+:is([role="navigation"][class*="justify-between"], [role="dialog"] div[class*="justify-end"][class*="gap-2"]) button {
+  border-radius: var(--kb-radius-button) !important;
+  border: 1px solid transparent !important;
+  font-size: var(--fs-2, 12px) !important;
+  line-height: var(--lh-2, 16px) !important;
+  padding: var(--space-1, 4px) var(--space-3, 12px) !important;
+  transition:
+    background-color var(--kb-dur-hover) var(--kb-ease),
+    border-color var(--kb-dur-hover) var(--kb-ease),
+    color var(--kb-dur-hover) var(--kb-ease),
+    transform var(--kb-dur-press) var(--kb-ease) !important;
+}
+:is([role="navigation"][class*="justify-between"], [role="dialog"] div[class*="justify-end"][class*="gap-2"]) button:hover {
+  border-color: rgb(var(--accent-primary, 91 140 255)) !important;
+  background: color-mix(
+    in srgb,
+    var(--surface-hover, #1a1f2b) 88%,
+    rgb(var(--accent-primary, 91 140 255)) 12%
+  ) !important;
+  color: rgb(var(--text-primary, 238 242 248)) !important;
+  transform: translateY(-1px) !important;
+}
+/* [AUDIT-FIX 2026-11-07] 补 :active 回落（三态补全：hover 抬 1px、按下归位微缩） */
+:is([role="navigation"][class*="justify-between"], [role="dialog"] div[class*="justify-end"][class*="gap-2"]) button:active {
+  transform: translateY(0) scale(0.98) !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35) !important;
+}
+:is([role="navigation"][class*="justify-between"], [role="dialog"] div[class*="justify-end"][class*="gap-2"]) :is([class*="text-sm"], [class*="text-xs"]) {
+  font-size: var(--fs-2, 12px) !important;
+  line-height: var(--lh-2, 16px) !important;
+  color: rgb(var(--text-tertiary, 154 164 182)) !important;
+}
+
+/* —— 过滤输入框：内距 8/12、字号 14/22、聚焦辉光 240ms */
+:is([role="region"]):has(table) input,
+:is([role="dialog"]) input[class*="peer"] {
+  border-radius: var(--kb-radius-input) !important;
+  border: 1px solid var(--border-medium, rgba(255, 255, 255, 0.1)) !important;
+  background: var(--surface-tertiary, #161a23) !important;
+  color: rgb(var(--text-primary, 238 242 248)) !important;
+  font-size: var(--fs-4, 14px) !important;
+  line-height: var(--lh-4, 22px) !important;
+  padding: var(--space-2, 8px) var(--space-3, 12px) !important;
+  transition:
+    border-color var(--kb-dur-surface) var(--kb-ease),
+    box-shadow var(--kb-dur-surface) var(--kb-ease) !important;
+}
+:is([role="region"]):has(table) input::placeholder,
+:is([role="dialog"]) input[class*="peer"]::placeholder {
+  color: rgb(var(--text-muted, 134 143 163)) !important;
+}
+:is([role="region"]):has(table) input:focus-visible,
+:is([role="dialog"]) input[class*="peer"]:focus-visible {
+  outline: 2px solid rgb(var(--accent-primary, 91 140 255)) !important;
+  outline-offset: 2px !important;
+  border-color: rgb(var(--accent-primary, 91 140 255)) !important;
+  box-shadow: 0 0 16px -3px rgba(91, 140, 255, 0.5) !important;
+}
+
+/* —— 浮动标签（filter 输入框的 label）：只锁时长，字号交给 peer-focus 的 14→12 切换
+ *    （两档都在阶梯上：14 常态 / 12 浮动态），避免把动画中间态钉死 */
+:is([role="region"]):has(table) label[class*="pointer-events-none"],
+:is([role="dialog"]) label[class*="pointer-events-none"] {
+  transition-duration: var(--kb-dur-surface) !important;
+  transition-timing-function: var(--kb-ease) !important;
+}
+
+/* —— 表头排序按钮：实测纵向内距 2px → 4（--space-1），12/16 字号行高 */
+:is([class*="table-fixed"], [class*="border-separate"]) thead button {
+  padding: var(--space-1, 4px) var(--space-2, 8px) !important;
+  font-size: var(--fs-2, 12px) !important;
+  line-height: var(--lh-2, 16px) !important;
+  border-radius: var(--kb-radius-button) !important;
+  transition-duration: var(--kb-dur-hover) !important;
+  transition-timing-function: var(--kb-ease) !important;
+}
+
+/* =========================================================================
+ * [B] 文件卡片 —— 卡片体 / 外层 / 包装 / 预览缩放 / 删除钮 hover 显隐
+ * ========================================================================= */
+
+/* —— 卡片体：14px 圆角 + 细边框 + 轻阴影 + hover 微抬升 + accent 描边
+ * [G82-DRAG] role=dialog/alertdialog 必须排除：OGDialog 的 high-contrast 类名也含
+ * border-border-medium，旧选择器会把卡片 hover 的 translateY(-1px) 和 transform
+ * transition 打到居中的弹窗上，在 pointerdown 前抹掉 -50% 居中并造成累计漂移。 */
+:is([class*="rounded-2xl"][class*="border-border-medium"]:not([role="dialog"]):not([role="alertdialog"])) {
+  border-radius: var(--kb-radius-card) !important;
+  border: 1px solid var(--border-medium, rgba(255, 255, 255, 0.1)) !important;
+  box-shadow: var(--kb-shadow-card) !important;
+  overflow: hidden !important;
+  transition:
+    transform var(--kb-dur-hover) var(--kb-ease),
+    box-shadow var(--kb-dur-hover) var(--kb-ease),
+    border-color var(--kb-dur-hover) var(--kb-ease) !important;
+}
+:is([class*="rounded-2xl"][class*="border-border-medium"]:not([role="dialog"]):not([role="alertdialog"])):hover {
+  transform: translateY(-1px) !important;
+  border-color: rgb(var(--accent-primary, 91 140 255)) !important;
+  box-shadow: var(--kb-shadow-card-hover) !important;
+}
+
+/* —— 预览图 hover 轻微放大（卡片内 img） */
+:is([class*="rounded-2xl"][class*="border-border-medium"]:not([role="dialog"]):not([role="alertdialog"])) img {
+  transition: transform var(--kb-dur-surface) var(--kb-ease) !important;
+}
+:is([class*="rounded-2xl"][class*="border-border-medium"]:not([role="dialog"]):not([role="alertdialog"])):hover img {
+  transform: scale(1.04) !important;
+}
+
+/* —— 卡片内删除钮：默认隐去，hover / focus 时浮现 */
+:is([class*="rounded-2xl"][class*="border-border-medium"]:not([role="dialog"]):not([role="alertdialog"])) button {
+  opacity: 0 !important;
+  transition:
+    opacity var(--kb-dur-hover) var(--kb-ease),
+    background-color var(--kb-dur-hover) var(--kb-ease) !important;
+}
+:is([class*="rounded-2xl"][class*="border-border-medium"]:not([role="dialog"]):not([role="alertdialog"])):hover button,
+:is([class*="rounded-2xl"][class*="border-border-medium"]:not([role="dialog"]):not([role="alertdialog"])):focus-within button {
+  opacity: 1 !important;
+}
+
+/* —— 卡片外层文字：13/20 次级色 */
+:is([class*="inline-block"][class*="text-text-secondary"]) {
+  font-size: var(--fs-3, 13px) !important;
+  line-height: var(--lh-3, 20px) !important;
+  color: rgb(var(--text-secondary, 194 203 217)) !important;
+}
+
+/* —— 卡片包装：行距 8 → 12，呼吸感 */
+:is([class*="flex-wrap"][class*="gap-2"]) {
+  gap: var(--kb-gap-sm) !important;
+}
+
+/* =========================================================================
+ * [C] 上传拖拽区 —— 虚线 accent 化 + hover 辉光 + 轻微抬升
+ * ========================================================================= */
+:is([class*="border-dashed"]) {
+  border-radius: var(--kb-radius-card) !important;
+  border: 1.5px dashed var(--border-heavy, rgba(255, 255, 255, 0.16)) !important;
+  background: color-mix(
+    in srgb,
+    var(--surface-secondary, #11141b) 94%,
+    rgb(var(--accent-primary, 91 140 255)) 6%
+  ) !important;
+  transition:
+    border-color var(--kb-dur-surface) var(--kb-ease),
+    background-color var(--kb-dur-surface) var(--kb-ease),
+    box-shadow var(--kb-dur-surface) var(--kb-ease),
+    transform var(--kb-dur-press) var(--kb-ease) !important;
+}
+:is([class*="border-dashed"]):hover:not(:disabled) {
+  border-color: rgb(var(--accent-primary, 91 140 255)) !important;
+  background: color-mix(
+    in srgb,
+    var(--surface-hover, #1a1f2b) 88%,
+    rgb(var(--accent-primary, 91 140 255)) 12%
+  ) !important;
+  box-shadow:
+    0 0 0 1px rgb(var(--accent-primary, 91 140 255)),
+    0 10px 28px -12px rgba(91, 140, 255, 0.5) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* =========================================================================
+ * [D] 上传进度态 —— 轨道内嵌阴影 + 填充 accent 渐变 + 辉光
+ * ========================================================================= */
+:is([class*="h-2"][class*="rounded-full"]) {
+  height: var(--space-2, 8px) !important;
+  border-radius: var(--omni-radius-pill, 9999px) !important;
+  background: var(--surface-tertiary, #161a23) !important;
+  overflow: hidden !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4) !important;
+}
+:is([class*="h-2"][class*="rounded-full"]) > div {
+  height: var(--space-2, 8px) !important;
+  border-radius: var(--omni-radius-pill, 9999px) !important;
+  background: linear-gradient(
+    90deg,
+    rgb(var(--accent-primary, 91 140 255)),
+    rgb(var(--accent-primary-hover, 111 155 255))
+  ) !important;
+  box-shadow: 0 0 8px -1px rgba(91, 140, 255, 0.7) !important;
+  transition: width var(--kb-dur-surface) var(--kb-ease) !important;
+}
+
+/* =========================================================================
+ * [E] Manage Files 弹窗 —— 面板 / 标题 / 表格区 / 列表操作钮
+ * ========================================================================= */
+
+/* —— 弹窗面板：16px 圆角 + 重描边 + 深投影（实测锚点 max-w-11/12，旧写 w-11/12 已失效） */
+:is([role="dialog"][class*="max-w-11/12"]) {
+  border-radius: var(--kb-radius-lg) !important;
+  border: 1px solid var(--border-heavy, rgba(255, 255, 255, 0.16)) !important;
+  box-shadow: 0 24px 70px -20px rgba(0, 0, 0, 0.8) !important;
+  padding: var(--space-5, 24px) !important;
+}
+/* 弹窗标题：16/24（阶梯第 5 级），与面板正文拉开一档 */
+:is([role="dialog"][class*="max-w-11/12"]) h2 {
+  font-size: var(--fs-5, 16px) !important;
+  line-height: var(--lh-5, 24px) !important;
+  font-weight: 600 !important;
+  color: rgb(var(--text-primary, 238 242 248)) !important;
+  letter-spacing: 0 !important;
+}
+
+/* —— 表格滚动区：14px 圆角 + 细边框 */
+:is([class*="max-h-[calc(100vh-20rem)"]),
+:is([role="dialog"] div[class*="rounded-md"][class*="border-border-light"]) {
+  border-radius: var(--kb-radius-card) !important;
+  border: 1px solid var(--border-medium, rgba(255, 255, 255, 0.1)) !important;
+}
+
+/* —— 列表行内操作钮（下载/删除等）：圆角 + hover accent 微动效 */
+:is([class*="text-xs"][class*="hover:bg-surface-hover"]) {
+  border-radius: var(--kb-radius-button) !important;
+  font-size: var(--fs-2, 12px) !important;
+  line-height: var(--lh-2, 16px) !important;
+  padding: var(--space-1, 4px) var(--space-2, 8px) !important;
+  transition:
+    background-color var(--kb-dur-hover) var(--kb-ease),
+    color var(--kb-dur-hover) var(--kb-ease) !important;
+}
+:is([class*="text-xs"][class*="hover:bg-surface-hover"]):hover {
+  background: color-mix(
+    in srgb,
+    var(--surface-hover, #1a1f2b) 88%,
+    rgb(var(--accent-primary, 91 140 255)) 12%
+  ) !important;
+  color: rgb(var(--text-primary, 238 242 248)) !important;
+}
+/* [AUDIT-FIX 2026-11-07] 补 :active 微缩（行内操作钮三态补全） */
+:is([class*="text-xs"][class*="hover:bg-surface-hover"]):active {
+  transform: scale(0.98) !important;
+}
+
+/* =========================================================================
+ * [F] 上传 / 操作主按钮
+ * ========================================================================= */
+:is([class*="btn-neutral"]) {
+  border-radius: var(--kb-radius-button) !important;
+  border: 1px solid var(--border-medium, rgba(255, 255, 255, 0.1)) !important;
+  font-size: var(--fs-4, 14px) !important;
+  line-height: var(--lh-4, 22px) !important;
+  font-weight: 600 !important;
+  transition:
+    transform var(--kb-dur-press) var(--kb-ease),
+    box-shadow var(--kb-dur-surface) var(--kb-ease),
+    background-color var(--kb-dur-surface) var(--kb-ease),
+    border-color var(--kb-dur-surface) var(--kb-ease) !important;
+}
+:is([class*="btn-neutral"]):hover {
+  border-color: rgb(var(--accent-primary, 91 140 255)) !important;
+  background: color-mix(
+    in srgb,
+    var(--surface-hover, #1a1f2b) 92%,
+    rgb(var(--accent-primary, 91 140 255)) 8%
+  ) !important;
+  box-shadow: var(--kb-accent-glow) !important;
+  transform: translateY(-1px) !important;
+}
+:is([class*="btn-neutral"]):active {
+  transform: translateY(0) scale(0.98) !important;
+}
+
+/* =========================================================================
+ * [G] 拖放遮罩（DragDropOverlay）—— 虚线 accent 化 + 辉光聚焦
+ * ========================================================================= */
+:is([class*="backdrop-blur-xl"]) {
+  border-radius: var(--kb-radius-lg) !important;
+  border: 1.5px dashed rgb(var(--accent-primary, 91 140 255)) !important;
+  background: color-mix(
+    in srgb,
+    var(--surface-primary, #0a0c10) 74%,
+    rgb(var(--accent-primary, 91 140 255)) 12%
+  ) !important;
+  box-shadow: 0 0 40px -8px rgba(91, 140, 255, 0.4) !important;
+}

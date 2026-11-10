@@ -1,0 +1,454 @@
+/* =========================================================================
+ * omni-craft-sidebar.css — OmniShade 侧边栏 / 会话列表 工艺覆盖层
+ * -------------------------------------------------------------------------
+ * [G71] 本轮只改 CSS，DOM / 脚本 / 路由 / 契约零改动，做两件事：
+ *   ① 重钉锚点。旧版全文件挂在
+ *        [class*="transition-width"][class*="bg-surface-secondary"]
+ *      上，当前构建（LibreChat v0.8.8-rc4 编译产物）侧栏根实际是
+ *        <aside class="relative flex h-full flex-shrink-0 overflow-hidden">
+ *      实测命中 0 → 27 条规则里 25 条是死规则，整层工艺对页面零作用。
+ *      现锚点改为「真锚点 ∪ 旧锚点」，新老构建都能落。
+ *   ② 令牌归位。字号/行高/间距/时长只取 omni-craft-system.css 的 6 级字号、
+ *      6 档间距、三档时长（150/250/400）与唯一主曲线，文件内不再出现裸 px / 裸秒。
+ *
+ * 真锚点（本构建实测，2026-11-01）：
+ *   侧栏根   aside[class*="flex-shrink-0"][class*="overflow-hidden"]   1 个
+ *   行程     button[class*="w-full"][class*="cursor-pointer"]
+ *   行标题   ... span[class*="inline-block"]
+ *   分组头   h2[class*="text-text-secondary"]                          «今天»
+ *   图标轨   a|button[class*="h-9"][class*="w-9"]                       36×36
+ *   搜索框   input[class*="w-full"]
+ *   搜索壳   div[class*="group"][class*="h-9"]
+ *   项目头   div[class*="flex-col"][class*="px-3"]
+ *   拖宽柄   div[class*="cursor-col-resize"]
+ *   激活态   [class*="bg-surface-active-alt"] / [data-active-item="true"]
+ *
+ * ⚠ 行程高度归 react-virtualized 所有（ReactVirtualized__Grid 给每行下 inline
+ *   height），所以本层**不给行程加纵向 padding**：加了文字会顶出虚拟行高、
+ *   把下方会话挤掉。纵向节奏由虚拟列表在 JS 侧决定，本层只管字号/行高/横距/
+ *   圆角/状态色/动效。这是本轮唯一一处「故意不归位」的几何属性。
+ * ========================================================================= */
+
+:root {
+  --sb-ease: var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1)); /* 唯一主曲线，与 system 同值 */
+  /* 侧栏字号指派（G71 重定，全部指向全局 6 级阶梯 11/12/13/14/16/20） */
+  --sb-fs-title: var(--fs-4, 14px);   /* 会话标题 —— 正文基准 */
+  --sb-fs-nav: var(--fs-4, 14px);     /* 导航文案 —— 与标题同级，靠字重分层 */
+  --sb-fs-meta: var(--fs-2, 12px);    /* 时间 / 副标题 */
+  --sb-fs-group: var(--fs-2, 12px);   /* 分组标题：实测旧值 11.2px，CJK 11px 笔画粘连，取 12 */
+  /* 侧栏步进（8pt 主节奏，全部走全局 --space-*） */
+  --sb-pad-x: var(--space-2, 8px);
+  --sb-row-x: var(--space-2, 8px);
+  --sb-row-y: var(--space-2, 8px);
+  --sb-gap: var(--space-2, 8px);
+  --sb-block-gap: var(--space-1, 4px);
+  --sb-radius: var(--omni-radius-button, 8px);  /* [UI-FINAL] 会话行/按钮/搜索壳统一 8（两级 8/12） */
+  /* 时长阶 */
+  --sb-dur-hover: var(--dur-2, 150ms);
+  --sb-dur-press: var(--dur-1, 150ms);
+  --sb-dur-surface: var(--dur-3, 250ms);
+}
+
+/* -------------------------------------------------------------------------
+ * 0) 侧栏根 —— 底色微渐变 + 宽度过渡落在时长阶
+ * ------------------------------------------------------------------------- */
+:is(
+  aside[class*="flex-shrink-0"][class*="overflow-hidden"],
+  [class*="transition-width"][class*="bg-surface-secondary"]
+) {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.015), transparent 120px),
+    var(--surface-secondary, #11141b) !important;
+  /* 实测 0.3s（300ms 不在 120/180/240/320 上）→ --dur-3；曲线由 system 的 * 规则统一 */
+  transition-duration: var(--sb-dur-surface) !important;
+}
+
+/* 图标轨 / 拖宽柄 / 导航容器 / 清搜索钮 / 下拉箭头：实测 0.15s / 0.2s → 180ms */
+:is(
+  aside[class*="flex-shrink-0"][class*="overflow-hidden"],
+  [class*="transition-width"][class*="bg-surface-secondary"]
+) :is(
+  a[class*="h-9"][class*="w-9"],
+  button[class*="h-9"][class*="w-9"],
+  nav,
+  div[class*="cursor-col-resize"],
+  button[class*="right-[7px]"],
+  svg[class*="chevron"]
+) {
+  transition-duration: var(--sb-dur-hover) !important;
+  transition-timing-function: var(--sb-ease) !important;
+}
+
+/* -------------------------------------------------------------------------
+ * 1) 会话行 / 项目行 —— 字号 · 横距 · 圆角 · 状态动效（纵向高度归虚拟列表）
+ * ------------------------------------------------------------------------- */
+:is(
+  aside[class*="flex-shrink-0"][class*="overflow-hidden"],
+  [class*="transition-width"][class*="bg-surface-secondary"]
+) :is(button[class*="w-full"][class*="cursor-pointer"]) {
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: var(--sb-gap) !important;                      /* 8 */
+  padding-inline: var(--sb-row-x) !important;         /* 8；纵向见文件头说明 */
+  margin: 0 !important;
+  border-radius: var(--sb-radius) !important;         /* 8 */
+  font-size: var(--sb-fs-title) !important;           /* 14 */
+  line-height: var(--lh-3, 20px) !important;          /* 20：与虚拟行高 20px 对齐 */
+  color: rgb(var(--text-secondary)) !important;
+  transition:
+    background-color var(--sb-dur-hover) var(--sb-ease),
+    color var(--sb-dur-hover) var(--sb-ease),
+    box-shadow var(--sb-dur-hover) var(--sb-ease) !important;
+}
+
+/* 行标题：与正文基准同级，字重 500 拉开与分组头的差 */
+:is(
+  aside[class*="flex-shrink-0"][class*="overflow-hidden"],
+  [class*="transition-width"][class*="bg-surface-secondary"]
+) :is(button[class*="w-full"][class*="cursor-pointer"]) span[class*="inline-block"] {
+  font-size: var(--sb-fs-title) !important;
+  line-height: var(--lh-3, 20px) !important;
+  font-weight: 500 !important;
+}
+
+/* 行内次级文字：阶梯第 2 级 12 / 16 */
+:is(
+  aside[class*="flex-shrink-0"][class*="overflow-hidden"],
+  [class*="transition-width"][class*="bg-surface-secondary"]
+) :is(button[class*="w-full"][class*="cursor-pointer"]) :is([class*="text-xs"], [class*="text-text-tertiary"]) {
+  font-size: var(--sb-fs-meta) !important;
+  line-height: var(--lh-2, 16px) !important;
+  opacity: 0.86 !important;                        /* 0.82 会吃掉 AA 余量，抬到 0.86 */
+  transition: opacity var(--sb-dur-hover) var(--sb-ease) !important;
+}
+
+/* hover：底色染 accent + 文字提亮（不用位移，避免虚拟列表行抖动） */
+:is(
+  aside[class*="flex-shrink-0"][class*="overflow-hidden"],
+  [class*="transition-width"][class*="bg-surface-secondary"]
+) :is(button[class*="w-full"][class*="cursor-pointer"]):hover {
+  background-color: color-mix(
+    in srgb,
+    var(--surface-hover, #1a1f2b) 90%,
+    rgb(var(--accent-primary)) 10%
+  ) !important;
+  color: rgb(var(--text-primary)) !important;
+}
+:is(
+  aside[class*="flex-shrink-0"][class*="overflow-hidden"],
+  [class*="transition-width"][class*="bg-surface-secondary"]
+) :is(button[class*="w-full"][class*="cursor-pointer"]):hover :is([class*="text-xs"], [class*="text-text-tertiary"]) {
+  opacity: 1 !important;
+}
+
+/* -------------------------------------------------------------------------
+ * 2) 左侧活跃指示条 —— 4px 竖条（间距首档），激活常亮 / 悬停预览
+ * ------------------------------------------------------------------------- */
+:is(
+  aside[class*="flex-shrink-0"][class*="overflow-hidden"],
+  [class*="transition-width"][class*="bg-surface-secondary"]
+) :is(button[class*="w-full"][class*="cursor-pointer"])::before {
+  content: "" !important;
+  position: absolute !important;
+  left: var(--space-1, 4px) !important;
+  top: var(--space-1, 4px) !important;
+  bottom: var(--space-1, 4px) !important;
+  width: var(--space-1, 4px) !important;
+  border-radius: var(--omni-radius-pill, 9999px) !important;
+  background: rgb(var(--accent-primary)) !important;
+  opacity: 0 !important;
+  transform: scaleY(0.4) !important;
+  transform-origin: center !important;
+  transition:
+    opacity var(--sb-dur-hover) var(--sb-ease),
+    transform var(--sb-dur-hover) var(--sb-ease) !important;
+  pointer-events: none !important;
+}
+:is(
+  aside[class*="flex-shrink-0"][class*="overflow-hidden"],
+  [class*="transition-width"][class*="bg-surface-secondary"]
+) :is(button[class*="w-full"][class*="cursor-pointer"]):hover::before {
+  opacity: 0.45 !important;
+  transform: scaleY(0.9) !important;
+}
+
+/* -------------------------------------------------------------------------
+ * 3) 选中态 —— 实测锚点 bg-surface-active-alt（7 处）/ data-active-item
+ * ------------------------------------------------------------------------- */
+:is(
+  aside[class*="flex-shrink-0"][class*="overflow-hidden"],
+  [class*="transition-width"][class*="bg-surface-secondary"]
+) :is([class*="bg-surface-active-alt"], [data-active-item="true"]) {
+  background: color-mix(in srgb, rgb(var(--accent-primary)) 14%, transparent) !important;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, rgb(var(--accent-primary)) 26%, transparent),
+    0 2px 12px -6px color-mix(in srgb, rgb(var(--accent-primary)) 55%, transparent) !important;
+  color: rgb(var(--text-primary)) !important;
+}
+:is(
+  aside[class*="flex-shrink-0"][class*="overflow-hidden"],
+  [class*="transition-width"][class*="bg-surface-secondary"]
+) :is([class*="bg-surface-active-alt"], [data-active-item="true"])::before {
+  opacity: 1 !important;
+  transform: scaleY(1) !important;
+}
+:is(
+  aside[class*="flex-shrink-0"][class*="overflow-hidden"],
+  [class*="transition-width"][class*="bg-surface-secondary"]
+) :is([class*="bg-surface-active-alt"], [data-active-item="true"]) :is([class*="font-medium"], [class*="font-semibold"]) {
+  color: rgb(var(--text-primary)) !important;
+}
+
+/* -------------------------------------------------------------------------
+ * 4) 分组标题 «今天» —— 实测 11.2px（14×0.8）→ 12/16
+ * ------------------------------------------------------------------------- */
+:is(
+  aside[class*="flex-shrink-0"][class*="overflow-hidden"],
+  [class*="transition-width"][class*="bg-surface-secondary"]
+) h2[class*="text-text-secondary"] {
+  font-size: var(--sb-fs-group) !important;   /* 12 */
+  line-height: var(--lh-2, 16px) !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.06em !important;
+  color: rgb(var(--text-tertiary)) !important; /* 12px 靠色阶分层，不用 opacity 压亮度 */
+  opacity: 1 !important;
+  padding: var(--space-1, 4px) 0 var(--space-1, 4px) var(--space-1, 4px) !important;
+}
+
+/* -------------------------------------------------------------------------
+ * 5) 搜索框 —— 实测行高 17.5px（leading-tight）→ 20；左内距 28 = 图标让位（12+16）
+ * ------------------------------------------------------------------------- */
+:is(
+  aside[class*="flex-shrink-0"][class*="overflow-hidden"],
+  [class*="transition-width"][class*="bg-surface-secondary"]
+) input[class*="w-full"] {
+  font-size: var(--fs-4, 14px) !important;
+  line-height: var(--lh-3, 20px) !important;
+  color: rgb(var(--text-primary)) !important;
+  /* 实测 pl-7 = 28px（= 图标 left 12 + 宽 16 的合成值）；改 24 后图标右缘 30、
+     正文起点 38，仍有 8px 净空，且落回 --space-5 档 */
+  padding-left: var(--space-5, 24px) !important;
+  padding-right: var(--space-2, 8px) !important;
+  transition:
+    background-color var(--sb-dur-surface) var(--sb-ease),
+    box-shadow var(--sb-dur-surface) var(--sb-ease) !important;
+}
+:is(
+  aside[class*="flex-shrink-0"][class*="overflow-hidden"],
+  [class*="transition-width"][class*="bg-surface-secondary"]
+) input[class*="w-full"]::placeholder {
+  color: rgb(var(--text-muted)) !important;
+}
+
+/* 搜索壳：实测纵向内距 6px → 8；横距 12 在档 */
+:is(
+  aside[class*="flex-shrink-0"][class*="overflow-hidden"],
+  [class*="transition-width"][class*="bg-surface-secondary"]
+) div[class*="group"][class*="h-9"] {
+  padding-block: var(--space-2, 8px) !important;
+  padding-inline: var(--space-3, 12px) !important;
+  gap: var(--space-3, 12px) !important;
+  border-radius: var(--sb-radius) !important;
+}
+
+/* 项目区头：实测 2px 上距（pt-0.5）→ 4 */
+:is(
+  aside[class*="flex-shrink-0"][class*="overflow-hidden"],
+  [class*="transition-width"][class*="bg-surface-secondary"]
+) div[class*="pt-0.5"] {
+  padding-top: var(--space-1, 4px) !important;
+}
+:is(
+  aside[class*="flex-shrink-0"][class*="overflow-hidden"],
+  [class*="transition-width"][class*="bg-surface-secondary"]
+) div[class*="flex-col"][class*="px-3"] {
+  padding-inline: var(--space-3, 12px) !important;
+  line-height: var(--lh-3, 20px) !important;
+}
+
+/* -------------------------------------------------------------------------
+ * 6) 分隔线 —— 统一到 border-light 令牌，不再写裸 rgba
+ * ------------------------------------------------------------------------- */
+:is(
+  aside[class*="flex-shrink-0"][class*="overflow-hidden"],
+  [class*="transition-width"][class*="bg-surface-secondary"]
+) :is([class*="border-border-light"], [class*="divide-border-light"] > *) {
+  border-color: var(--border-light, rgba(255, 255, 255, 0.06)) !important;
+}
+
+/* -------------------------------------------------------------------------
+ * 7) 滚动条 —— 细、半透明、hover 提亮（9px 为指针命中安全边，非节奏档）
+ * ------------------------------------------------------------------------- */
+:is(
+  aside[class*="flex-shrink-0"][class*="overflow-hidden"],
+  [class*="transition-width"][class*="bg-surface-secondary"]
+) ::-webkit-scrollbar {
+  width: 9px !important;
+  height: 9px !important;
+}
+:is(
+  aside[class*="flex-shrink-0"][class*="overflow-hidden"],
+  [class*="transition-width"][class*="bg-surface-secondary"]
+) ::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+:is(
+  aside[class*="flex-shrink-0"][class*="overflow-hidden"],
+  [class*="transition-width"][class*="bg-surface-secondary"]
+) ::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, rgb(var(--text-tertiary)) 26%, transparent) !important;
+  border-radius: var(--sb-radius) !important;
+  border: 2px solid transparent !important;
+  background-clip: padding-box !important;
+  transition: background var(--sb-dur-hover) var(--sb-ease) !important;
+}
+:is(
+  aside[class*="flex-shrink-0"][class*="overflow-hidden"],
+  [class*="transition-width"][class*="bg-surface-secondary"]
+) ::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, rgb(var(--text-tertiary)) 48%, transparent) !important;
+  background-clip: padding-box !important;
+}
+/* Firefox 细滚动条兜底（全局无害） */
+* {
+  scrollbar-width: thin !important;
+  scrollbar-color: color-mix(in srgb, rgb(var(--text-tertiary)) 30%, transparent) transparent !important;
+}
+
+/* ===================== [GLASS-GRADIENT] 侧栏材质 =====================
+ * 侧栏根此前把 RGB 三元组裸用于 background，计算期会丢声明；这里改为完整 rgba。
+ * 仅替换背景/描边/阴影，虚拟列表高度与所有交互状态保持原样。 */
+:is(
+  aside[class*="flex-shrink-0"][class*="overflow-hidden"],
+  [class*="transition-width"][class*="bg-surface-secondary"]
+) {
+  /* [UI-FINAL] 侧栏实底 #0d1219（surface-0 凹档）+ 1px subtle 分界。
+   * 本条规则特异性 (0,2,1) 此前压过 PERF-PURGE 通配 (0,0,0)——毛玻璃其实
+   * 没拔干净；现显式置 none，配合 system 侧令牌归零，双路彻底退场。 */
+  background: #0d1219 !important;
+  border-right: 1px solid var(--omni-border-subtle, rgba(255, 255, 255, 0.07)) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  box-shadow: none !important;
+}
+:is(
+  aside[class*="flex-shrink-0"][class*="overflow-hidden"],
+  [class*="transition-width"][class*="bg-surface-secondary"]
+) > :is(nav, div)[class*="bg-surface-primary-alt"] {
+  background: none !important;   /* [UI-FINAL] 高光渐变退场，侧栏单色实底 */
+}
+:is(
+  aside[class*="flex-shrink-0"][class*="overflow-hidden"],
+  [class*="transition-width"][class*="bg-surface-secondary"]
+) div[class*="group"][class*="h-9"] {
+  background: #10161f !important;   /* [UI-FINAL] 搜索壳凹档实底 */
+  border-color: var(--omni-border-subtle, rgba(255, 255, 255, 0.07)) !important;
+  box-shadow: none !important;
+}
+/* class*=bg-surface-active-alt 会误中 hover:bg-*；默认行显式归零，再用 class~= 识别真选中。 */
+:is(
+  aside[class*="flex-shrink-0"][class*="overflow-hidden"],
+  [class*="transition-width"][class*="bg-surface-secondary"]
+) :is(
+  div[class*="group"][class*="h-12"][class*="w-full"],
+  button[class*="w-full"][class*="cursor-pointer"]
+) {
+  background: transparent !important;   /* [UI-FINAL] 行默认零装饰 */
+  box-shadow: none !important;
+}
+:is(
+  aside[class*="flex-shrink-0"][class*="overflow-hidden"],
+  [class*="transition-width"][class*="bg-surface-secondary"]
+) :is(
+  div[class*="group"][class*="h-12"][class*="w-full"],
+  button[class*="w-full"][class*="cursor-pointer"]
+):hover {
+  background: rgba(255, 255, 255, 0.05) !important;   /* [UI-FINAL] hover 单通道：中性微底 */
+  box-shadow: none !important;
+}
+:is(
+  aside[class*="flex-shrink-0"][class*="overflow-hidden"],
+  [class*="transition-width"][class*="bg-surface-secondary"]
+) :is([class~="bg-surface-active-alt"], [data-active-item="true"]) {
+  /* [UI-FINAL] 选中 = accent 12% 实底 + 2px 左标记，其余信号交给指示条 ::before */
+  background: rgb(var(--accent-primary, 91 140 255) / 0.12) !important;
+  box-shadow: inset 2px 0 0 rgb(var(--accent-primary, 91 140 255)) !important;
+  color: rgb(var(--text-primary)) !important;
+}
+
+/* ===================== [IA-RHYTHM] 侧栏功能分区与呼吸 =====================
+ * 只动外层功能块的间距；react-virtualized 的行高、定位和滚动几何保持原样。 */
+:is(
+  aside[class*="flex-shrink-0"][class*="overflow-hidden"],
+  [class*="transition-width"][class*="bg-surface-secondary"]
+) > div[class*="flex-shrink-0"][class*="flex-col"][class*="gap-2"] {
+  gap: var(--space-3) !important;
+}
+
+/* 搜索与项目之间留 12px，项目/Pinned/对话各自成为独立功能块。 */
+:is(
+  aside[class*="flex-shrink-0"][class*="overflow-hidden"],
+  [class*="transition-width"][class*="bg-surface-secondary"]
+) nav div:has(> div[class*="group"][class*="h-9"]) {
+  margin-bottom: var(--space-3) !important;
+}
+:is(
+  aside[class*="flex-shrink-0"][class*="overflow-hidden"],
+  [class*="transition-width"][class*="bg-surface-secondary"]
+) nav div[class*="flex-col"][class*="px-3"][class*="text-sm"] {
+  margin-bottom: var(--space-3) !important;
+}
+:is(
+  aside[class*="flex-shrink-0"][class*="overflow-hidden"],
+  [class*="transition-width"][class*="bg-surface-secondary"]
+) nav div[class*="px-3"]:has(> [data-testid='chat-filter-menu']) {
+  padding-top: var(--space-1) !important;
+  padding-bottom: var(--space-2) !important;
+}
+:is(
+  aside[class*="flex-shrink-0"][class*="overflow-hidden"],
+  [class*="transition-width"][class*="bg-surface-secondary"]
+) nav div[class*="pb-3"][class*="pt-2"] {
+  padding-top: var(--space-3) !important;
+  padding-bottom: var(--space-4) !important;
+}
+
+/* 侧栏空态与面板状态共用 12px 语义间距和 24/32px 块级留白。 */
+html :is(
+  aside[class*="flex-shrink-0"][class*="overflow-hidden"],
+  [class*="transition-width"][class*="bg-surface-secondary"]
+) [data-testid="convo-list-empty"] {
+  min-height: 160px !important;
+  gap: var(--omni-state-gap, var(--space-3)) !important;
+  padding: var(--omni-state-padding, var(--space-6)) var(--space-5) !important;
+}
+
+/* ============================================================================
+ * [FACE-FIX 2026-11-07] 前脸修复 · 左侧图标轨 / 侧面板边界 + 降密度
+ * ----------------------------------------------------------------------------
+ * 实测锚点（assets/index.Bx_aOP0E.js）：
+ *   图标轨   div.flex.h-full.flex-shrink-0.flex-col.gap-2.border-r.bg-surface-primary-alt
+ *   侧面板   div.flex.w-56.shrink-0.flex-col.gap-0.5.border-r.bg-surface-primary-alt
+ * 未登录/欢迎态下图标轨直接挂在 nav 下，同样命中本段（不依赖 aside 存在，
+ * 这正是欢迎屏左侧白栏的 DOM 落点——底色已由 system 的令牌补全修掉，
+ * 这里补齐「与主区的 1px 细描边」和呼吸感）。
+ * 只动描边/间距/纵向内距，不动宽度、不动 flex 几何、不动虚拟列表行高。
+ * ========================================================================== */
+html [class*="flex-shrink-0"][class*="flex-col"][class*="bg-surface-primary-alt"],
+html :is(aside, nav) [class*="bg-surface-primary-alt"][class*="border-r"] {
+  border-right: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06)) !important;
+}
+
+/* 图标轨降密度：gap 8 → 12（--space-3），纵向内距 8 → 12；横向保持 8 不动图标列对齐。 */
+html [class*="flex-shrink-0"][class*="flex-col"][class*="bg-surface-primary-alt"] {
+  gap: var(--space-3, 12px) !important;
+  padding-block: var(--space-3, 12px) !important;
+}
+
+/* 轨内图标钮（36×36）hover 反馈统一到 surface-hover 令牌（不改变尺寸/布局）。 */
+html [class*="flex-shrink-0"][class*="flex-col"][class*="bg-surface-primary-alt"]
+  :is(a, button)[class*="h-9"][class*="w-9"]:hover {
+  background-color: rgb(var(--surface-hover, 26 31 43)) !important;
+  color: rgb(var(--text-primary)) !important;
+}

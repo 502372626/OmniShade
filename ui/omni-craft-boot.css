@@ -1,0 +1,309 @@
+/* =========================================================================
+ * omni-craft-boot.css — OmniShade 首屏 / 启动 / 登录 loading-container 工艺覆盖层
+ * -------------------------------------------------------------------------
+ * 作用域锚点：
+ *   #loading-container  —— index.html 中的首屏占位容器（<div id="loading-container">），
+ *                          其深色基底由 index.html 内联 <style> 脚本按主题注入，
+ *                          内联 DOM 内容（品牌标识 / 加载动画 / 进度提示）由主控（Electron
+ *                          主进程）在 React 挂载前注入。本文件只做 CSS 覆盖，不改 index.html，
+ *                          不改任何 React 源码。
+ *
+ * 设计令牌复用 index.html <style id="omni-craft"> 注入的变量：
+ *   --surface-primary #0c0e13 / --text-primary #e9edf5 / --text-secondary #aab3c5
+ *   --text-tertiary #6f7889 / --accent-primary #5b8cff / --radius 12px
+ *   全站底色 html,body 为 #080a0e
+ *
+ * 特异性策略：
+ *   容器规则用 html body #root #loading-container（特异性 2,0,2）压过内联脚本的
+ *   #loading-container（1,0,0）；子项规则统一挂在 #loading-container 下并加 !important，
+ *   稳稳压过 LibreChat 编译产物里的 Tailwind 单类工具类与内联样式，零侵入。
+ *
+ * 工艺目标（验收维度）：
+ *   1) 首屏深色基底    —— 与 OmniShade 全站 #080a0e / surface 一脉相承，附品牌色环境光。
+ *   2) 品牌标识居中    —— logo / 名称垂直水平居中，柔光 + 上浮入场。
+ *   3) 加载动画雅致    —— 旋转渐变环（conic-gradient 旋转）+ 真实 spinner 的 accent 辉光与脉冲。
+ *   4) 进度提示层级    —— 标题 / 次级 / 三级 三档字号 + 字重 + 字距 + 渐显，拉开信息层级。
+ * ========================================================================= */
+
+/* -------------------------------------------------------------------------
+ * 0) 容器基底：深色 + 全视口 + 垂直水平居中 + 品牌环境光
+ * ------------------------------------------------------------------------- */
+html body #root #loading-container {
+  /* 覆盖内联脚本注入的纯色背景，换成 OmniShade 深色基底 + 轻微顶部品牌渐变 */
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 24px !important;   /* [AUDIT-FIX] 22px 破格 → 24（--space-5） */
+  width: 100% !important;
+  height: 100vh !important;
+  height: 100dvh !important;          /* 移动端动态视口高度，避开地址栏跳动 */
+  margin: 0 !important;
+  padding: 24px !important;
+  overflow: hidden !important;
+  position: relative !important;
+  background:
+    radial-gradient(120% 90% at 50% 18%, rgba(91,140,255,.10), transparent 60%),
+    radial-gradient(90% 70% at 50% 120%, rgba(91,140,255,.06), transparent 55%),
+    #080a0e !important;               /* 与全站 html,body 同色，杜绝首屏闪白 */
+  color: var(--text-primary, #e9edf5) !important;
+  font-family: "Inter", "Microsoft YaHei", system-ui, -apple-system, "Segoe UI", sans-serif !important;
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+  z-index: 0 !important;
+}
+
+/* -------------------------------------------------------------------------
+ * 1) 环境光晕（::before）—— 中心柔光，给首屏一点“通电感”，永远在内容下层
+ * ------------------------------------------------------------------------- */
+html body #root #loading-container::before {
+  content: "" !important;
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  width: min(56vmin, 520px) !important;
+  height: min(56vmin, 520px) !important;
+  transform: translate(-50%, -50%) !important;
+  background: radial-gradient(circle, rgba(91,140,255,.16), rgba(91,140,255,.04) 45%, transparent 70%) !important;
+  filter: blur(8px) !important;
+  opacity: .9 !important;
+  pointer-events: none !important;
+  z-index: 0 !important;
+  animation: omni-boot-breathe 4.2s var(--omni-boot-ease, cubic-bezier(0.22, 1, 0.36, 1)) infinite !important;
+}
+
+/* -------------------------------------------------------------------------
+ * 2) 旋转渐变环（::after）—— 雅致签名元素：conic 渐变 + 环形遮罩 + 旋转
+ *    放在内容下层，作为首屏主视觉；真实 spinner（若有）会叠在其上 compositing。
+ * ------------------------------------------------------------------------- */
+html body #root #loading-container::after {
+  content: "" !important;
+  position: absolute !important;
+  top: 50% !important;                  /* 绝对居中，作为真实 spinner 的渐变光环外框 */
+  left: 50% !important;
+  width: 72px !important;
+  height: 72px !important;
+  transform: translate(-50%, -50%) !important;
+  border-radius: var(--omni-radius-circle, 50%) !important;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(91,140,255,.15) 60deg,
+    var(--accent-primary, #5b8cff) 150deg,
+    rgba(91,140,255,.15) 240deg,
+    transparent 360deg
+  ) !important;
+  /* 环形遮罩：只留外圈，中心透出底图 */
+  -webkit-mask: radial-gradient(closest-side, transparent calc(100% - 4px), #000 calc(100% - 3px)) !important;
+          mask: radial-gradient(closest-side, transparent calc(100% - 4px), #000 calc(100% - 3px)) !important;
+  filter: drop-shadow(0 0 10px rgba(91,140,255,.35)) !important;
+  pointer-events: none !important;
+  z-index: 1 !important;
+  animation: omni-boot-rotate-center 1.4s var(--omni-boot-ease, cubic-bezier(0.22, 1, 0.36, 1)) infinite !important;
+}
+
+/* 让真实内容（品牌 / spinner / 文字）浮在光晕与渐变环之上 */
+html body #root #loading-container > * {
+  position: relative !important;
+  z-index: 2 !important;
+}
+
+/* -------------------------------------------------------------------------
+ * 3) 品牌标识：logo 图片 / svg / 名称 —— 居中、柔光、上浮入场
+ * ------------------------------------------------------------------------- */
+html body #root #loading-container img,
+html body #root #loading-container svg,
+html body #root #loading-container [class*="brand"],
+html body #root #loading-container [class*="logo"],
+html body #root #loading-container [class*="wordmark"] {
+  display: block !important;
+  margin: 0 auto !important;
+  max-width: 168px !important;
+  max-height: 56px !important;
+  width: auto !important;
+  height: auto !important;
+  filter: drop-shadow(0 6px 22px rgba(91,140,255,.30)) !important;
+  opacity: 0 !important;
+  animation: omni-boot-rise 1s cubic-bezier(0.22, 1, 0.36, 1) .05s forwards !important;
+}
+
+/* 纯文字品牌名（无图时）：大字号 + 字距 + 渐变描边感 */
+html body #root #loading-container [class*="brand"]:not(img):not(svg),
+html body #root #loading-container h1,
+html body #root #loading-container [class*="wordmark"]:not(img):not(svg) {
+  font-size: var(--fs-6, 20px) !important;   /* G31: 旧 22px 野值归并到阶梯第 6 级 */
+  font-weight: 700 !important;
+  letter-spacing: .06em !important;
+  line-height: 1.2 !important;
+  color: var(--text-primary, #e9edf5) !important;
+  text-align: center !important;
+}
+
+/* -------------------------------------------------------------------------
+ * 4) 加载动画：把 LibreChat 自带的 spinner（svg.spinner / .animate-spin 边框环）
+ *    统一收编成“accent 辉光 + 平滑旋转 + 轻微脉冲”，与渐变环同语言。
+ * ------------------------------------------------------------------------- */
+
+/* 4a) SVG 旋转 spinner（LibreChat <svg class="spinner">） */
+html body #root #loading-container svg.spinner,
+html body #root #loading-container [class*="spinner"] {
+  display: block !important;
+  margin: 0 auto !important;
+  width: 44px !important;
+  height: 44px !important;
+  color: var(--accent-primary, #5b8cff) !important;
+  filter: drop-shadow(0 0 8px rgba(91,140,255,.45)) !important;
+  opacity: 0 !important;
+  animation:
+    omni-boot-fade .8s cubic-bezier(0.22, 1, 0.36, 1) .15s forwards,
+    /* 例外保留 linear：无限旋转必须匀速，缓动会让每圈起停卡顿 */
+
+    omni-boot-rotate 1.1s linear infinite,
+    omni-boot-glow 2.4s var(--omni-boot-ease, cubic-bezier(0.22, 1, 0.36, 1)) .95s infinite !important;
+}
+
+/* 4b) Tailwind 边框环 spinner（div.border-b-2.animate-spin 等） */
+html body #root #loading-container [class*="animate-spin"] {
+  display: block !important;
+  margin: 0 auto !important;
+  width: 44px !important;
+  height: 44px !important;
+  border-radius: var(--omni-radius-circle, 50%) !important;
+  border: 3px solid rgba(91,140,255,.18) !important;
+  border-top-color: var(--accent-primary, #5b8cff) !important;   /* 旋转高亮弧 */
+  background: transparent !important;
+  box-shadow: 0 0 14px rgba(91,140,255,.25) !important;
+  filter: none !important;
+  opacity: 0 !important;
+  animation:
+    omni-boot-fade .8s cubic-bezier(0.22, 1, 0.36, 1) .15s forwards,
+    /* 例外保留 linear：无限旋转必须匀速，缓动会让每圈起停卡顿 */
+
+    omni-boot-rotate 1.1s linear infinite,
+    omni-boot-glow 2.4s var(--omni-boot-ease, cubic-bezier(0.22, 1, 0.36, 1)) .95s infinite !important;
+}
+
+/* 4c) 兜底：任何看起来像 loader 的元素，给个 accent 描边 + 旋转 */
+html body #root #loading-container [class*="loader"],
+html body #root #loading-container [class*="loading"] {
+  color: var(--accent-primary, #5b8cff) !important;
+}
+
+/* -------------------------------------------------------------------------
+ * 5) 进度提示：三档字号层级（标题 / 次级 / 三级）
+ * ------------------------------------------------------------------------- */
+
+/* 5a) 标题档 —— 状态主文案（如 “正在启动…” / “Connecting…”） */
+html body #root #loading-container h2,
+html body #root #loading-container h3,
+html body #root #loading-container [class*="text-lg"],
+html body #root #loading-container [class*="text-xl"],
+html body #root #loading-container [class*="title"] {
+  margin: 4px auto 0 !important;
+  font-size: var(--fs-5, 16px) !important;  /* 标题档 · 阶梯 5 */
+  font-weight: 600 !important;
+  letter-spacing: .02em !important;
+  line-height: 1.4 !important;
+  text-align: center !important;
+  color: var(--text-primary, #e9edf5) !important;
+  opacity: 0 !important;
+  animation: omni-boot-rise .9s cubic-bezier(0.22, 1, 0.36, 1) .35s forwards !important;
+}
+
+/* 5b) 次级档 —— 进度百分比 / 步骤说明 */
+html body #root #loading-container p,
+html body #root #loading-container [class*="text-sm"],
+html body #root #loading-container [class*="text-base"],
+html body #root #loading-container [class*="progress"],
+html body #root #loading-container [class*="status"] {
+  margin: 4px auto 0 !important;   /* [AUDIT-FIX] 2px 破格 → 4（--space-1） */
+  font-size: var(--fs-3, 13px) !important;  /* 次级档 · 阶梯 3 */
+  font-weight: 400 !important;
+  letter-spacing: .04em !important;
+  line-height: 1.5 !important;
+  text-align: center !important;
+  color: var(--text-secondary, #aab3c5) !important;
+  opacity: 0 !important;
+  animation: omni-boot-rise .9s cubic-bezier(0.22, 1, 0.36, 1) .5s forwards !important;
+}
+
+/* 5c) 三级档 —— 文件名校 / 调试信息 / 版本号 */
+html body #root #loading-container [class*="text-xs"],
+html body #root #loading-container [class*="truncate"],
+html body #root #loading-container small,
+html body #root #loading-container [class*="hint"],
+html body #root #loading-container [class*="meta"] {
+  margin: 4px auto 0 !important;   /* [AUDIT-FIX] 1px 破格 → 4（--space-1） */
+  max-width: 80vw !important;
+  font-size: var(--fs-1, 11px) !important;  /* 三级档 · 阶梯 1 */
+  font-weight: 400 !important;
+  letter-spacing: .05em !important;
+  line-height: 1.5 !important;
+  text-align: center !important;
+  color: var(--text-tertiary, #6f7889) !important;
+  opacity: 0 !important;
+  animation: omni-boot-rise .9s cubic-bezier(0.22, 1, 0.36, 1) .65s forwards !important;
+}
+
+/* 截断文本不要换行破坏居中布局 */
+html body #root #loading-container [class*="truncate"] {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+/* -------------------------------------------------------------------------
+ * 6) 关键帧：旋转渐变 / 脉冲呼吸 / 上浮入场（命名加 omni-boot- 前缀避免与
+ *    LibreChat 自带 spin / pulse / fadein 冲突）
+ * ------------------------------------------------------------------------- */
+@keyframes omni-boot-rotate-center {
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+@keyframes omni-boot-rotate {
+  to { transform: rotate(360deg); }
+}
+@keyframes omni-boot-glow {
+  0%, 100% { filter: drop-shadow(0 0 8px rgba(91,140,255,.45)); }
+  50%      { filter: drop-shadow(0 0 16px rgba(91,140,255,.75)); }
+}
+@keyframes omni-boot-breathe {
+  0%, 100% { opacity: .55; transform: translate(-50%, -50%) scale(.96); }
+  50%      { opacity: .95; transform: translate(-50%, -50%) scale(1.04); }
+}
+@keyframes omni-boot-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes omni-boot-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* 注意：4a/4b 的 transform 被各自 animation 接管，rise 仅作入场透明度与位移，
+ * 旋转/spin 由独立 animation 负责，二者在同一元素上并列声明互不覆盖。 */
+
+/* -------------------------------------------------------------------------
+ * 7) 无障碍：尊重系统“减少动态效果”偏好，关闭旋转/脉冲，仅保留静态入场
+ * ------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  html body #root #loading-container::after,
+  html body #root #loading-container svg.spinner,
+  html body #root #loading-container [class*="spinner"],
+  html body #root #loading-container [class*="animate-spin"] {
+    animation: none !important;
+  }
+  html body #root #loading-container::before {
+    animation: none !important;
+  }
+  html body #root #loading-container img,
+  html body #root #loading-container svg,
+  html body #root #loading-container [class*="brand"],
+  html body #root #loading-container [class*="logo"],
+  html body #root #loading-container h2,
+  html body #root #loading-container h3,
+  html body #root #loading-container p,
+  html body #root #loading-container [class*="text-"] {
+    animation: none !important;
+    opacity: 1 !important;
+  }
+}
