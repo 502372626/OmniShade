@@ -26,9 +26,20 @@ OmniShade 不是又一个套壳聊天框。它在本地跑一条完整的**工�
 
 ## 安装
 
-1. 下载安装包（任选其一，同一个包）：
-   - **GitHub 官方发布页**：[Releases · v1.11.1](https://github.com/502372626/OmniShade/releases/latest) —— `OmniShade-Setup-1.11.1.exe`（553 MB，含 Electron 运行时）
-   - 国内直链：[gdlr.asia/download](https://gdlr.asia/download/OmniShade-Setup-latest.exe)
+1. 下载安装包（任选其一，**同一个文件，SHA256 完全一致**）：
+
+   | 线路 | 地址 | 说明 |
+   |---|---|---|
+   | **GitHub 官方** | [Releases · v1.11.1](https://github.com/502372626/OmniShade/releases/download/v1.11.1/OmniShade-Setup-1.11.1.exe) | 579,467,938 字节，海外/代理环境用这个 |
+   | **GitHub 加速①** | `https://gh-proxy.com/https://github.com/502372626/OmniShade/releases/download/v1.11.1/OmniShade-Setup-1.11.1.exe` | 国内实测 9.3 MB/s |
+   | **GitHub 加速②** | `https://ghproxy.net/https://github.com/502372626/OmniShade/releases/download/v1.11.1/OmniShade-Setup-1.11.1.exe` | 备用线路 |
+   | **国内直链** | [gdlr.asia/download](https://gdlr.asia/download/OmniShade-Setup-latest.exe) | 自有服务器，注意带宽 |
+
+   校验值（四种线路下载到的都是同一个文件）：
+   ```
+   SHA256  edfc5a30c0d1022203ce9b032637604689cf8e0075ac5aea323e38d75f0b2191
+   大小    579,467,938 字节
+   ```
 2. 双击 → 确认 → 自动装到 `%LocalAppData%\Programs\OmniShade`
 3. 首次打开注册一个账号（**注册即永久授权**，无卡密环节）
 
