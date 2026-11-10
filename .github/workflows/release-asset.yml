@@ -1,0 +1,43 @@
+name: Attach installer to Release
+
+# 由 GitHub runner 从下载站拉安装包再挂到 Release：
+# runner 在境外，下载与上传都走 GitHub 侧带宽，避免国内/香港直传 uploads.github.com 被掐流。
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag'
+        required: true
+        default: 'v1.11.1'
+      source_url:
+        description: 'Installer source URL'
+        required: true
+        default: 'https://gdlr.asia/download/OmniShade-Setup-latest.exe'
+      asset_name:
+        description: 'Asset filename'
+        required: true
+        default: 'OmniShade-Setup-1.11.1.exe'
+
+permissions:
+  contents: write
+
+jobs:
+  attach:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Download installer
+        run: |
+          set -e
+          echo "downloading ${{ inputs.source_url }}"
+          curl -fL --retry 3 --retry-delay 5 -o "${{ inputs.asset_name }}" "${{ inputs.source_url }}"
+          ls -lh "${{ inputs.asset_name }}"
+          sha256sum "${{ inputs.asset_name }}"
+
+      - name: Upload to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          gh release upload "${{ inputs.tag }}" "${{ inputs.asset_name }}" --clobber --repo "${{ github.repository }}"
+          echo "attached."
