@@ -26,7 +26,9 @@ OmniShade 不是又一个套壳聊天框。它在本地跑一条完整的**工�
 
 ## 安装
 
-1. 下载安装包：**[OmniShade-Setup-latest.exe](https://gdlr.asia/download/OmniShade-Setup-latest.exe)**（约 553 MB，免安装配置，含 Electron 运行时）
+1. 下载安装包（任选其一，同一个包）：
+   - **GitHub 官方发布页**：[Releases · v1.11.1](https://github.com/502372626/OmniShade/releases/latest) —— `OmniShade-Setup-1.11.1.exe`（553 MB，含 Electron 运行时）
+   - 国内直链：[gdlr.asia/download](https://gdlr.asia/download/OmniShade-Setup-latest.exe)
 2. 双击 → 确认 → 自动装到 `%LocalAppData%\Programs\OmniShade`
 3. 首次打开注册一个账号（**注册即永久授权**，无卡密环节）
 
