@@ -32,6 +32,24 @@ OmniShade 不是又一个套壳聊天框。它在本地跑一条完整的**工�
 
 约需 4 GB 磁盘空间，解压 2–3 分钟。
 
+## 从源码构建
+
+仓库只含源码（33 MB），依赖与运行时不在版本库里——这是标准做法。
+
+```bash
+# 1. 装依赖（约 626 MB）
+npm install
+
+# 2. 全链构建（UI 产物 → asar → exe → 安装包）
+node build_all_in_one.js --run
+
+# 产物位置
+#   dist-local/win-unpacked/            可直接运行的目录
+#   dist-local/OmniShade-<version>.7z   安装包载荷
+```
+
+构建脚本 STEP 说明见 `build_all_in_one.js` 顶部注释。Electron 运行时、Chromium、node_modules 全部由构建过程生成，不进 Git。
+
 ## 设计要点
 
 - **本机优先**：授权、工具桥、会话数据全部落在本机，断网可用
