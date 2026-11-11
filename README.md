@@ -9,6 +9,8 @@
 
 ---
 
+> 💬 **交流 QQ 群 1124698128** ｜ ⬇️ [下载安装包](https://github.com/502372626/OmniShade/releases/latest) ｜ ❤️ [支持项目](#打赏) ｜ 🐛 [提问题](https://github.com/502372626/OmniShade/issues)
+
 ## 这是什么
 
 OmniShade 不是又一个套壳聊天框。它在本地跑一条完整的**工具桥**，把 49 个本机能力直接接进对话：
